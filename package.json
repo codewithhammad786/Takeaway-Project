@@ -1,0 +1,9 @@
+{
+  "name": "bunndough-website",
+  "private": true,
+  "description": "Root marker so hosting platforms detect this as a Node.js app (server/) instead of a static site (public/) — the actual app lives in server/, see server/package.json.",
+  "scripts": {
+    "build": "cd server && npm install",
+    "start": "cd server && node server.js"
+  }
+}
