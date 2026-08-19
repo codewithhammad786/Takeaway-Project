@@ -1,14 +1,6 @@
-const RESEND_COOLDOWN_SECONDS = 60;
-
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('register-form');
   const feedback = document.getElementById('register-feedback');
-  const detailsFields = document.getElementById('register-details-fields');
-  const sendCodeBtn = document.getElementById('send-code-btn');
-  const otpGroup = document.getElementById('otp-group');
-  const otpInput = document.getElementById('otp');
-  const otpPhoneDisplay = document.getElementById('otp-phone-display');
-  const resendBtn = document.getElementById('resend-code-btn');
   const submitBtn = document.getElementById('register-submit');
   const loginLink = document.getElementById('login-link');
 
@@ -44,76 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  let resendTimer = null;
-
-  function startResendCooldown() {
-    let secondsLeft = RESEND_COOLDOWN_SECONDS;
-    resendBtn.disabled = true;
-    resendBtn.textContent = `Resend code (${secondsLeft}s)`;
-    clearInterval(resendTimer);
-    resendTimer = setInterval(() => {
-      secondsLeft -= 1;
-      if (secondsLeft <= 0) {
-        clearInterval(resendTimer);
-        resendBtn.disabled = false;
-        resendBtn.textContent = 'Resend code';
-      } else {
-        resendBtn.textContent = `Resend code (${secondsLeft}s)`;
-      }
-    }, 1000);
-  }
-
-  async function requestCode() {
-    const error = validateDetails();
-    if (error) {
-      showFeedback(error, 'error');
-      return;
-    }
-    feedback.hidden = true;
-
-    const phone = document.getElementById('phone').value.trim();
-    sendCodeBtn.disabled = true;
-    sendCodeBtn.textContent = 'Sending…';
-
-    try {
-      await apiRequest('/auth/send-otp', {
-        method: 'POST',
-        body: JSON.stringify({ phone }),
-      });
-
-      showFeedback('Verification code sent — check your phone.', 'success');
-
-      Array.from(detailsFields.querySelectorAll('input')).forEach((input) => {
-        if (input.id !== 'phone') return;
-        input.readOnly = true;
-      });
-
-      otpPhoneDisplay.textContent = phone;
-      otpGroup.hidden = false;
-      sendCodeBtn.hidden = true;
-      submitBtn.hidden = false;
-      otpInput.focus();
-      startResendCooldown();
-    } catch (err) {
-      showFeedback(err.message, 'error');
-      sendCodeBtn.disabled = false;
-      sendCodeBtn.textContent = 'Send Verification Code';
-    }
-  }
-
-  sendCodeBtn.addEventListener('click', requestCode);
-  resendBtn.addEventListener('click', () => {
-    if (resendBtn.disabled) return;
-    requestCode();
-  });
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     feedback.hidden = true;
 
-    const otp = otpInput.value.trim();
-    if (!otp) {
-      showFeedback('Enter the verification code sent to your phone', 'error');
+    const error = validateDetails();
+    if (error) {
+      showFeedback(error, 'error');
       return;
     }
 
@@ -128,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
           name: formData.get('name'),
           email: formData.get('email'),
           phone: formData.get('phone'),
-          otp,
           password: formData.get('password'),
         }),
       });
@@ -137,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       showFeedback(err.message, 'error');
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Verify & Create Account';
+      submitBtn.textContent = 'Create Account';
     }
   });
 });

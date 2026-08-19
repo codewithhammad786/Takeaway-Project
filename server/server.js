@@ -25,9 +25,6 @@ if (!process.env.ADMIN_SESSION_SECRET) {
 if (!process.env.JWT_SECRET) {
   console.warn('⚠️  JWT_SECRET is not set — customer registration/login will fail until configured in .env');
 }
-if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_VERIFY_SERVICE_SID) {
-  console.warn('⚠️  Twilio settings are not fully set — phone verification (customer registration) will fail until configured in .env');
-}
 
 // Sets standard security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, HSTS,
 // etc.) site-wide. Content-Security-Policy is left off deliberately — this frontend uses inline

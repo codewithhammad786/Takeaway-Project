@@ -38,43 +38,32 @@
         <form class="checkout-form auth-form" id="register-form" novalidate>
           <div id="register-feedback" class="feedback error" hidden></div>
 
-          <div id="register-details-fields">
-            <div class="form-group">
-              <label for="name">Full Name</label>
-              <input type="text" id="name" name="name" required autocomplete="name" />
-            </div>
-
-            <div class="form-group">
-              <label for="email">Email</label>
-              <input type="email" id="email" name="email" required autocomplete="email" />
-            </div>
-
-            <div class="form-group">
-              <label for="phone">Phone Number</label>
-              <input type="tel" id="phone" name="phone" required autocomplete="tel" placeholder="07123 456789" />
-              <p class="form-hint">We'll text you a 6-digit code to verify it's really you.</p>
-            </div>
-
-            <div class="form-group">
-              <label for="password">Password</label>
-              <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password" />
-            </div>
-
-            <div class="form-group">
-              <label for="confirmPassword">Confirm Password</label>
-              <input type="password" id="confirmPassword" name="confirmPassword" required minlength="6" autocomplete="new-password" />
-            </div>
+          <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" required autocomplete="name" />
           </div>
 
-          <button type="button" class="btn btn-primary btn-block" id="send-code-btn">Send Verification Code</button>
-
-          <div class="form-group" id="otp-group" hidden>
-            <label for="otp">Verification Code</label>
-            <input type="text" id="otp" name="otp" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="123456" />
-            <p class="form-hint">Code sent to <strong id="otp-phone-display"></strong>. <button type="button" class="link-btn" id="resend-code-btn">Resend code</button></p>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required autocomplete="email" />
           </div>
 
-          <button type="submit" class="btn btn-primary btn-block" id="register-submit" hidden>Verify &amp; Create Account</button>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" required autocomplete="tel" placeholder="07123 456789" />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password" />
+          </div>
+
+          <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" required minlength="6" autocomplete="new-password" />
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="register-submit">Create Account</button>
 
           <p class="auth-switch">Already have an account? <a href="login.html" id="login-link">Log in</a></p>
         </form>

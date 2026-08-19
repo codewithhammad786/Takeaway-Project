@@ -35,6 +35,20 @@
 
     <section class="section">
       <div class="container">
+        <div class="orders-summary" id="orders-summary" hidden>
+          <div class="dashboard-stat-card">
+            <span class="dashboard-stat-label">Total Orders</span>
+            <span class="dashboard-stat-value" id="stat-order-count">0</span>
+          </div>
+          <div class="dashboard-stat-card">
+            <span class="dashboard-stat-label">Total Spent</span>
+            <span class="dashboard-stat-value" id="stat-order-spent">£0.00</span>
+          </div>
+          <div class="dashboard-stat-card">
+            <span class="dashboard-stat-label">Last Order</span>
+            <span class="dashboard-stat-value" id="stat-order-last">—</span>
+          </div>
+        </div>
         <div id="orders-list">
           <p class="loading">Loading your orders…</p>
         </div>

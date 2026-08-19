@@ -6,7 +6,7 @@ const User = require('../models/User');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const requireCustomer = require('../middleware/requireCustomer');
-const { normalizePhone, sendOtp, checkOtp } = require('../utils/twilioVerify');
+const { normalizePhone } = require('../utils/twilioVerify');
 
 const router = express.Router();
 
@@ -38,32 +38,6 @@ function publicUser(user) {
   return { id: user._id, name: user.name, email: user.email, phone: user.phone };
 }
 
-// POST /api/auth/send-otp — texts a 6-digit verification code to a phone number that isn't
-// already registered, ahead of account creation.
-router.post('/send-otp', authLimiter, async (req, res, next) => {
-  try {
-    const { phone } = req.body;
-    if (!phone || !PHONE_REGEX.test(phone)) {
-      return res.status(400).json({ message: 'A valid phone number is required' });
-    }
-
-    const normalizedPhone = normalizePhone(phone);
-    const existing = await User.findOne({ phone: normalizedPhone });
-    if (existing) {
-      return res.status(409).json({ message: 'An account with that phone number already exists' });
-    }
-
-    await sendOtp(normalizedPhone);
-    res.json({ message: 'Verification code sent' });
-  } catch (err) {
-    if (err.status) {
-      console.error('Twilio send-otp error:', { status: err.status, code: err.code, message: err.message, moreInfo: err.moreInfo });
-      return res.status(err.status).json({ message: err.message });
-    }
-    next(err);
-  }
-});
-
 // POST /api/auth/register
 router.post('/register', authLimiter, async (req, res, next) => {
   try {
@@ -71,7 +45,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
       return res.status(500).json({ message: 'Customer auth is not configured on the server (missing JWT_SECRET)' });
     }
 
-    const { name, email, phone, otp, password } = req.body;
+    const { name, email, phone, password } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Name is required' });
@@ -81,9 +55,6 @@ router.post('/register', authLimiter, async (req, res, next) => {
     }
     if (!phone || !PHONE_REGEX.test(phone)) {
       return res.status(400).json({ message: 'A valid phone number is required' });
-    }
-    if (!otp || !/^\d{4,8}$/.test(otp)) {
-      return res.status(400).json({ message: 'Enter the verification code sent to your phone' });
     }
     if (!password || password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
@@ -103,26 +74,16 @@ router.post('/register', authLimiter, async (req, res, next) => {
       return res.status(409).json({ message: 'An account with that phone number already exists' });
     }
 
-    const verified = await checkOtp(normalizedPhone, otp);
-    if (!verified) {
-      return res.status(400).json({ message: 'That verification code is incorrect or has expired' });
-    }
-
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       phone: normalizedPhone,
-      phoneVerified: true,
       passwordHash,
     });
 
     res.status(201).json({ token: signToken(user), user: publicUser(user) });
   } catch (err) {
-    if (err.status) {
-      console.error('Twilio register/checkOtp error:', { status: err.status, code: err.code, message: err.message, moreInfo: err.moreInfo });
-      return res.status(err.status).json({ message: err.message });
-    }
     next(err);
   }
 });
