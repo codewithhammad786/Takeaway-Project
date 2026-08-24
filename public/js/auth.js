@@ -1,59 +1,35 @@
-const CUSTOMER_TOKEN_KEY = 'bunndough_customer_token';
-const CUSTOMER_USER_KEY = 'bunndough_customer_user';
+// There's no password login — instead, a guest gives their name, phone, and email once (saved to
+// this browser's localStorage) before they can browse the menu or order. Every page that needs to
+// know "do we have this guest's details yet" uses these shared helpers, so there's exactly one
+// place the storage key and shape are defined.
+const GUEST_DETAILS_KEY = 'bunndough_guest_details';
 
-function getCustomerToken() {
-  return localStorage.getItem(CUSTOMER_TOKEN_KEY);
-}
-
-function getCustomerUser() {
+function getGuestDetails() {
   try {
-    const raw = localStorage.getItem(CUSTOMER_USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return JSON.parse(localStorage.getItem(GUEST_DETAILS_KEY) || 'null');
   } catch (e) {
     return null;
   }
 }
 
-function setCustomerSession(token, user) {
-  localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
-  localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
+function hasGuestDetails() {
+  const d = getGuestDetails();
+  return !!(d && d.customerName && d.phone && d.email);
 }
 
-function clearCustomerSession() {
-  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  localStorage.removeItem(CUSTOMER_USER_KEY);
+function saveGuestDetails({ customerName, phone, email }) {
+  localStorage.setItem(GUEST_DETAILS_KEY, JSON.stringify({ customerName, phone, email }));
 }
 
-function isLoggedIn() {
-  return !!getCustomerToken();
-}
-
-function authHeaders() {
-  const token = getCustomerToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+function redirectToGuestGate(redirectTarget) {
+  const here = redirectTarget || window.location.pathname.split('/').pop() + window.location.search;
+  window.location.href = `guest.html?redirect=${encodeURIComponent(here)}`;
 }
 
 function renderAuthNav() {
   const container = document.getElementById('auth-nav');
   if (!container) return;
-
-  const user = getCustomerUser();
-  if (user) {
-    container.innerHTML = `
-      <span class="nav-greeting">Hi, ${escapeHtml(user.name.split(' ')[0])}</span>
-      <a href="orders.html">My Orders</a>
-      <button type="button" id="logout-btn" class="nav-logout-btn">Logout</button>
-    `;
-    document.getElementById('logout-btn').addEventListener('click', () => {
-      clearCustomerSession();
-      // Cart is scoped per browser via localStorage, not per account — clear it on logout so
-      // the next person to log in on this device never sees a previous customer's selections.
-      clearCart();
-      window.location.href = 'index.html';
-    });
-  } else {
-    container.innerHTML = `<a href="login.html">Login</a>`;
-  }
+  container.innerHTML = `<a href="orders.html">📦 Track Order</a>`;
 }
 
 document.addEventListener('DOMContentLoaded', renderAuthNav);

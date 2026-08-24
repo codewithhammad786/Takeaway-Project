@@ -1,6 +1,12 @@
 const ADMIN_TOKEN_KEY = 'bunndough_admin_token';
 const STATUS_OPTIONS = ['Pending', 'Preparing', 'Out for Delivery', 'Ready for Pickup', 'Completed'];
 
+// Auto-print is a per-computer setting (localStorage, not tied to the manager account) — only the
+// till/counter machine with a printer attached should have this on, so it can't follow a manager
+// who logs in elsewhere.
+const AUTO_PRINT_KEY = 'bunndough_admin_autoprint';
+const AUTO_PRINT_SEEN_KEY = 'bunndough_admin_autoprint_seen';
+
 let allOrders = [];
 let pollTimer = null;
 
@@ -53,10 +59,311 @@ function showPanel() {
   document.getElementById('admin-logout-wrap').hidden = false;
 }
 
+// Renders an item's modifiers grouped under their real menu headings (e.g. "Choose your salad",
+// "Choose your sauces") when available, falling back to a flat bullet list for orders placed before
+// selectedGroups existed, or for pizza topping customization (which has no groups).
+function describeItemModifiers(item, { groupClass, listClass }) {
+  if (item.selectedGroups && item.selectedGroups.length) {
+    return item.selectedGroups
+      .map(
+        (g) => `
+      <div class="${groupClass}">
+        <span class="${groupClass}-label">${escapeHtml(g.label)}:</span> ${g.choices.map(escapeHtml).join(', ')}
+      </div>
+    `
+      )
+      .join('');
+  }
+  if (item.selectedOptions && item.selectedOptions.length) {
+    return `<ul class="${listClass}">${item.selectedOptions.map((o) => `<li>${escapeHtml(o)}</li>`).join('')}</ul>`;
+  }
+  return '';
+}
+
 function describeOrderItems(order) {
-  return order.items
-    .map((i) => `${i.quantity}× ${escapeHtml(i.name)}${i.variantLabel && i.variantLabel !== 'Regular' ? ` (${escapeHtml(i.variantLabel)})` : ''}`)
-    .join(', ');
+  return `
+    <ul class="admin-order-item-list">
+      ${order.items
+        .map((i) => {
+          const variant = i.variantLabel && i.variantLabel !== 'Regular' ? ` (${escapeHtml(i.variantLabel)})` : '';
+          const options = describeItemModifiers(i, {
+            groupClass: 'admin-order-item-group',
+            listClass: 'admin-order-item-options',
+          });
+          return `
+        <li>
+          <div class="admin-order-item-line">
+            <span>${i.quantity}× ${escapeHtml(i.name)}${variant}</span>
+            <span>${formatCurrency(i.price * i.quantity)}</span>
+          </div>
+          ${options}
+        </li>
+      `;
+        })
+        .join('')}
+    </ul>
+  `;
+}
+
+function receiptHtml(order) {
+  const itemRows = order.items
+    .map((i) => {
+      const variant = i.variantLabel && i.variantLabel !== 'Regular' ? `<span class="r-variant">${escapeHtml(i.variantLabel)}</span>` : '';
+      const options = describeItemModifiers(i, { groupClass: 'r-mod-group', listClass: 'r-mods' });
+      return `
+        <tr>
+          <td class="r-item-cell">
+            <div class="r-item-name">${escapeHtml(i.name)} ${variant}</div>
+            ${options}
+          </td>
+          <td class="r-qty-cell">${i.quantity}</td>
+          <td class="r-price-cell">${formatCurrency(i.price)}</td>
+          <td class="r-price-cell r-line-total">${formatCurrency(i.price * i.quantity)}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  const isPaid = order.paymentStatus === 'Paid';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Receipt ${escapeHtml(order.orderNumber)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    color: #262220;
+    background: #f2f2f2;
+    margin: 0;
+    padding: 24px;
+  }
+  .receipt {
+    max-width: 640px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+  .r-topbar { height: 6px; background: linear-gradient(90deg, #e6ac00, #ffc72c, #e6ac00); }
+  .r-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 26px 30px 20px;
+    border-bottom: 2px solid #f0e4c0;
+  }
+  .r-brand { display: flex; align-items: center; gap: 12px; }
+  .r-brand-name { font-family: 'Poppins', sans-serif; font-size: 1.3rem; font-weight: 800; margin: 0; }
+  .r-brand-tag { font-size: 0.78rem; color: #6b6358; margin: 2px 0 0; }
+  .r-meta-block { text-align: right; }
+  .r-receipt-label { font-family: 'Poppins', sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6358; }
+  .r-order-number { font-size: 1.05rem; font-weight: 800; margin: 2px 0; }
+  .r-order-date { font-size: 0.8rem; color: #6b6358; }
+  .r-status-pill { display: inline-block; margin-top: 8px; padding: 4px 14px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+  .r-status-pill.paid { background: #e6f4ea; color: #1e7b34; }
+  .r-status-pill.unpaid { background: #fdecea; color: #b3261e; }
+
+  .r-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 22px 30px; border-bottom: 1px solid #f0e4c0; }
+  .r-info-col h4 { font-family: 'Poppins', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #e6ac00; margin: 0 0 8px; }
+  .r-info-col p { margin: 0 0 4px; font-size: 0.92rem; line-height: 1.5; }
+  .r-info-col .r-label { color: #6b6358; font-size: 0.78rem; }
+
+  table.r-items { width: 100%; border-collapse: collapse; margin: 0; }
+  table.r-items thead th {
+    text-align: left;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b6358;
+    padding: 14px 30px 10px;
+    border-bottom: 2px solid #f0e4c0;
+  }
+  table.r-items thead th.r-qty-cell,
+  table.r-items thead th.r-price-cell { text-align: right; }
+  table.r-items td { padding: 12px 30px; vertical-align: top; border-bottom: 1px solid #f5efd9; font-size: 0.92rem; }
+  .r-item-cell { width: 55%; }
+  .r-item-name { font-weight: 700; }
+  .r-variant { font-weight: 500; color: #6b6358; font-size: 0.85rem; }
+  .r-mods { margin: 5px 0 0; padding-left: 18px; color: #6b6358; font-size: 0.82rem; }
+  .r-mods li { margin-bottom: 2px; }
+  .r-mod-group { margin: 4px 0 0; color: #6b6358; font-size: 0.82rem; }
+  .r-mod-group-label { font-weight: 700; color: #262220; }
+  .r-qty-cell { text-align: right; color: #6b6358; }
+  .r-price-cell { text-align: right; white-space: nowrap; }
+  .r-line-total { font-weight: 700; }
+
+  .r-summary { padding: 20px 30px 26px; display: flex; justify-content: flex-end; }
+  .r-summary-box { width: 260px; }
+  .r-summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; color: #6b6358; }
+  .r-summary-row.discount span:last-child { color: #1e7b34; }
+  .r-summary-row.total { border-top: 2px solid #262220; margin-top: 8px; padding-top: 10px; font-weight: 800; font-size: 1.15rem; color: #262220; }
+
+  .r-notes-box { margin: 0 30px 24px; background: #fff8e7; border: 1px solid #f0e4c0; border-radius: 10px; padding: 14px 16px; }
+  .r-notes-box h4 { font-family: 'Poppins', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #e6ac00; margin: 0 0 6px; }
+  .r-notes-box p { margin: 0; font-size: 0.9rem; font-style: italic; }
+
+  .r-footer { text-align: center; padding: 20px 30px 28px; border-top: 2px solid #f0e4c0; }
+  .r-footer p { margin: 2px 0; font-size: 0.82rem; color: #6b6358; }
+  .r-thanks { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; color: #262220; margin-bottom: 6px !important; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .receipt { box-shadow: none; border-radius: 0; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <div class="receipt">
+    <div class="r-topbar"></div>
+    <div class="r-header">
+      <div class="r-brand">
+        <div>
+          <p class="r-brand-name">🍔 Bun 'n Dough</p>
+          <p class="r-brand-tag">Pizza · Burger · Grill</p>
+        </div>
+      </div>
+      <div class="r-meta-block">
+        <div class="r-receipt-label">Order Receipt</div>
+        <div class="r-order-number">#${escapeHtml(order.orderNumber)}</div>
+        <div class="r-order-date">${new Date(order.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+        <span class="r-status-pill ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? '✓ Paid' : 'Not Paid'}</span>
+      </div>
+    </div>
+
+    <div class="r-info-grid">
+      <div class="r-info-col">
+        <h4>Customer</h4>
+        <p><span class="r-label">Name:</span> <strong>${escapeHtml(order.customerName)}</strong></p>
+        <p><span class="r-label">Phone:</span> ${escapeHtml(order.phone)}</p>
+        ${order.email ? `<p><span class="r-label">Email:</span> ${escapeHtml(order.email)}</p>` : ''}
+      </div>
+      <div class="r-info-col">
+        <h4>${escapeHtml(order.orderType)}</h4>
+        ${
+          order.orderType === 'Delivery'
+            ? `
+          <p><span class="r-label">Address:</span> ${escapeHtml(order.address)}</p>
+          <p><span class="r-label">City:</span> ${escapeHtml(order.city)}</p>
+          ${order.postcode ? `<p><span class="r-label">Postcode:</span> ${escapeHtml(order.postcode)}</p>` : ''}
+        `
+            : `<p>Collection in-store</p>`
+        }
+        <p><span class="r-label">Kitchen status:</span> ${escapeHtml(order.status)}</p>
+      </div>
+    </div>
+
+    <table class="r-items">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th class="r-qty-cell">Qty</th>
+          <th class="r-price-cell">Price</th>
+          <th class="r-price-cell">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows}
+      </tbody>
+    </table>
+
+    <div class="r-summary">
+      <div class="r-summary-box">
+        <div class="r-summary-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal)}</span></div>
+        ${order.discount > 0 ? `<div class="r-summary-row discount"><span>Online discount</span><span>-${formatCurrency(order.discount)}</span></div>` : ''}
+        ${order.deliveryFee > 0 ? `<div class="r-summary-row"><span>Delivery fee</span><span>${formatCurrency(order.deliveryFee)}</span></div>` : ''}
+        <div class="r-summary-row total"><span>Total</span><span>${formatCurrency(order.total)}</span></div>
+      </div>
+    </div>
+
+    ${order.notes ? `<div class="r-notes-box"><h4>Special Instructions</h4><p>${escapeHtml(order.notes)}</p></div>` : ''}
+
+    <div class="r-footer">
+      <p class="r-thanks">Thank you for your order!</p>
+      <p>Bun 'n Dough — 40 Horse Fair, Birmingham B1 1DA</p>
+      <p>0121 448 4142 · info@bunndough.com</p>
+    </div>
+  </div>
+
+  <script>window.onload = () => window.print();</script>
+</body>
+</html>`;
+}
+
+function printReceipt(order) {
+  const win = window.open('', '_blank', 'width=720,height=840');
+  if (!win) {
+    alert('Please allow pop-ups for this site to print receipts.');
+    return;
+  }
+  win.document.write(receiptHtml(order));
+  win.document.close();
+}
+
+// Prints a receipt via a throwaway hidden iframe instead of window.open() — used for auto-print so
+// it can't be silently swallowed by the browser's pop-up blocker the way an unattended window.open()
+// call from a polling loop (rather than a direct click) usually would be. The receipt's own
+// `window.onload = () => window.print()` script still runs — inside the iframe, `window` refers to
+// the iframe's own window, so it prints just that iframe's content.
+function silentPrintReceipt(order) {
+  const frame = document.createElement('iframe');
+  frame.style.position = 'fixed';
+  frame.style.width = '0';
+  frame.style.height = '0';
+  frame.style.border = '0';
+  frame.style.visibility = 'hidden';
+  document.body.appendChild(frame);
+
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write(receiptHtml(order));
+  doc.close();
+
+  setTimeout(() => frame.remove(), 8000);
+}
+
+function isAutoPrintEnabled() {
+  return localStorage.getItem(AUTO_PRINT_KEY) === 'true';
+}
+
+function getAutoPrintSeenIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(AUTO_PRINT_SEEN_KEY) || '[]'));
+  } catch (err) {
+    return new Set();
+  }
+}
+
+function saveAutoPrintSeenIds(idsSet) {
+  localStorage.setItem(AUTO_PRINT_SEEN_KEY, JSON.stringify([...idsSet].slice(-300)));
+}
+
+// Marks every currently-known paid order as "already handled" — called the moment auto-print is
+// switched on, so turning it on doesn't blast-print the entire order history, only orders that
+// become Paid from that point forward.
+function markAllCurrentOrdersAsSeen() {
+  saveAutoPrintSeenIds(new Set(allOrders.filter((o) => o.paymentStatus === 'Paid').map((o) => o._id)));
+}
+
+function autoPrintNewOrders() {
+  if (!isAutoPrintEnabled()) return;
+
+  const seen = getAutoPrintSeenIds();
+  const newlyPaid = allOrders.filter((o) => o.paymentStatus === 'Paid' && !seen.has(o._id));
+  if (!newlyPaid.length) return;
+
+  newlyPaid.forEach((order) => {
+    silentPrintReceipt(order);
+    seen.add(order._id);
+  });
+  saveAutoPrintSeenIds(seen);
 }
 
 function renderOrders() {
@@ -86,7 +393,7 @@ function renderOrders() {
           ? ` (${escapeHtml(order.address)}, ${escapeHtml(order.city)}${order.postcode ? ' ' + escapeHtml(order.postcode) : ''})`
           : ''
       }</p>
-        <p class="admin-order-items">${describeOrderItems(order)}</p>
+        ${describeOrderItems(order)}
         ${order.notes ? `<p class="admin-order-notes">Notes: ${escapeHtml(order.notes)}</p>` : ''}
         <p><strong>Total: ${formatCurrency(order.total)}</strong></p>
       </div>
@@ -96,6 +403,10 @@ function renderOrders() {
             ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}" ${s === order.status ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
           </select>
         </label>
+        <div class="admin-order-actions">
+          <button type="button" class="btn btn-outline admin-print-btn" data-print-receipt>🖨️ Print Receipt</button>
+          <button type="button" class="btn btn-outline admin-delete-btn" data-delete-order>🗑️ Delete</button>
+        </div>
       </div>
     </div>
   `
@@ -116,6 +427,22 @@ function renderOrders() {
         if (previous) select.value = previous;
       }
     });
+    card.querySelector('[data-print-receipt]').addEventListener('click', () => {
+      const order = allOrders.find((o) => o._id === id);
+      if (order) printReceipt(order);
+    });
+    card.querySelector('[data-delete-order]').addEventListener('click', async () => {
+      const order = allOrders.find((o) => o._id === id);
+      if (!confirm(`Delete order #${order ? order.orderNumber : ''}? This can't be undone.`)) return;
+
+      try {
+        await adminRequest(`/orders/${id}`, { method: 'DELETE' });
+        allOrders = allOrders.filter((o) => o._id !== id);
+        renderOrders();
+      } catch (err) {
+        alert(`Failed to delete order: ${err.message}`);
+      }
+    });
   });
 }
 
@@ -123,6 +450,7 @@ async function loadOrders() {
   try {
     allOrders = await adminRequest('/orders');
     renderOrders();
+    autoPrintNewOrders();
     document.getElementById('admin-last-updated').textContent = `Updated ${new Date().toLocaleTimeString('en-GB')}`;
   } catch (err) {
     if (pollTimer) clearInterval(pollTimer);
@@ -159,10 +487,13 @@ function renderMenuImages() {
         <strong>${escapeHtml(item.name)}</strong>
         <span class="admin-image-category">${escapeHtml(item.category)}</span>
       </div>
-      <label class="btn btn-outline admin-image-upload-btn">
-        Upload Photo
-        <input type="file" accept="image/jpeg,image/png,image/webp" data-image-input hidden />
-      </label>
+      <div class="admin-image-actions">
+        <label class="btn btn-outline admin-image-upload-btn">
+          Upload Photo
+          <input type="file" accept="image/jpeg,image/png,image/webp" data-image-input hidden />
+        </label>
+        <button type="button" class="btn btn-outline admin-delete-btn" data-delete-item>🗑️ Delete</button>
+      </div>
       <span class="admin-image-status" data-image-status></span>
     </div>
   `
@@ -203,6 +534,19 @@ function renderMenuImages() {
         status.textContent = `Failed: ${err.message}`;
       } finally {
         input.value = '';
+      }
+    });
+
+    card.querySelector('[data-delete-item]').addEventListener('click', async () => {
+      const item = allMenuItems.find((i) => i._id === id);
+      if (!confirm(`Delete "${item ? item.name : 'this item'}" from the menu? This can't be undone.`)) return;
+
+      try {
+        await adminRequest(`/menu/${id}`, { method: 'DELETE' });
+        allMenuItems = allMenuItems.filter((i) => i._id !== id);
+        renderMenuImages();
+      } catch (err) {
+        alert(`Failed to delete menu item: ${err.message}`);
       }
     });
   });
@@ -307,6 +651,7 @@ async function loadReviews() {
 }
 
 let dashboardLoaded = false;
+let dealsLoaded = false;
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -419,6 +764,7 @@ function switchAdminTab(tab) {
   document.getElementById('admin-tab-orders').hidden = tab !== 'orders';
   document.getElementById('admin-tab-images').hidden = tab !== 'images';
   document.getElementById('admin-tab-reviews').hidden = tab !== 'reviews';
+  document.getElementById('admin-tab-deals').hidden = tab !== 'deals';
   document.getElementById('admin-tab-settings').hidden = tab !== 'settings';
 
   if (tab === 'dashboard' && !dashboardLoaded) {
@@ -429,6 +775,20 @@ function switchAdminTab(tab) {
   }
   if (tab === 'reviews' && !reviewsLoaded) {
     loadReviews();
+  }
+  if (tab === 'deals' && !dealsLoaded) {
+    loadDealsRecipientCount();
+  }
+}
+
+async function loadDealsRecipientCount() {
+  const countEl = document.getElementById('deals-recipient-count');
+  try {
+    const { count } = await adminRequest('/campaigns/recipients-count');
+    countEl.textContent = count;
+    dealsLoaded = true;
+  } catch (err) {
+    countEl.textContent = '?';
   }
 }
 
@@ -523,6 +883,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('payment-filter').addEventListener('change', renderOrders);
 
+  const autoPrintToggle = document.getElementById('autoprint-toggle');
+  autoPrintToggle.checked = isAutoPrintEnabled();
+  autoPrintToggle.addEventListener('change', () => {
+    localStorage.setItem(AUTO_PRINT_KEY, autoPrintToggle.checked ? 'true' : 'false');
+    if (autoPrintToggle.checked) {
+      markAllCurrentOrdersAsSeen();
+    }
+  });
+
   document.querySelectorAll('.admin-tab').forEach((btn) => {
     btn.addEventListener('click', () => switchAdminTab(btn.getAttribute('data-tab')));
   });
@@ -565,6 +934,42 @@ document.addEventListener('DOMContentLoaded', () => {
       feedback.textContent = err.message;
       feedback.className = 'feedback error';
       feedback.hidden = false;
+    }
+  });
+
+  document.getElementById('deals-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const feedback = document.getElementById('deals-feedback');
+    feedback.hidden = true;
+
+    const subject = document.getElementById('deal-subject').value.trim();
+    const message = document.getElementById('deal-message').value.trim();
+    const recipientCount = document.getElementById('deals-recipient-count').textContent;
+
+    if (!confirm(`Send "${subject}" to ${recipientCount} customer(s) by email now? This can't be undone.`)) {
+      return;
+    }
+
+    const sendBtn = document.getElementById('deals-send-btn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+
+    try {
+      const result = await adminRequest('/campaigns/send', {
+        method: 'POST',
+        body: JSON.stringify({ subject, message }),
+      });
+      feedback.textContent = `Sent to ${result.sent} of ${result.total} customer(s)${result.failed ? ` — ${result.failed} failed to send` : ''}.`;
+      feedback.className = `feedback ${result.failed ? 'error' : 'success'}`;
+      feedback.hidden = false;
+      if (!result.failed) e.target.reset();
+    } catch (err) {
+      feedback.textContent = err.message;
+      feedback.className = 'feedback error';
+      feedback.hidden = false;
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send to All Customers';
     }
   });
 

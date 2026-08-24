@@ -124,7 +124,7 @@ function renderOrderHistory(orders) {
       btn.disabled = true;
       btn.textContent = 'Removing…';
       try {
-        await apiRequest(`/orders/${id}`, { method: 'DELETE', headers: authHeaders() });
+        await apiRequest(`/orders/${id}`, { method: 'DELETE' });
         currentOrders = currentOrders.filter((o) => o._id !== id);
         renderOrderHistory(currentOrders);
         showToast('Order removed.', '🗑️');
@@ -137,22 +137,53 @@ function renderOrderHistory(orders) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  if (!isLoggedIn()) {
-    window.location.href = 'login.html?redirect=orders.html';
-    return;
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('order-lookup-form');
+  const feedback = document.getElementById('lookup-feedback');
+  const submitBtn = document.getElementById('lookup-submit-btn');
+  const resultsBox = document.getElementById('orders-results');
+
+  const saved = getGuestDetails();
+  if (saved) {
+    if (saved.phone) document.getElementById('lookup-phone').value = saved.phone;
+    if (saved.email) document.getElementById('lookup-email').value = saved.email;
   }
 
-  const container = document.getElementById('orders-list');
-  try {
-    const orders = await apiRequest('/auth/orders', { headers: authHeaders() });
-    renderOrderHistory(orders);
-  } catch (err) {
-    if (err.status === 401) {
-      clearCustomerSession();
-      window.location.href = 'login.html?redirect=orders.html';
-      return;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    feedback.hidden = true;
+
+    const phone = document.getElementById('lookup-phone').value.trim();
+    const email = document.getElementById('lookup-email').value.trim();
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Searching…';
+
+    try {
+      const { orders } = await apiRequest('/customers/lookup-orders', {
+        method: 'POST',
+        body: JSON.stringify({ phone, email }),
+      });
+
+      resultsBox.hidden = false;
+      if (!orders.length) {
+        document.getElementById('orders-summary').hidden = true;
+        document.getElementById('orders-list').innerHTML = `
+          <div class="empty-state">
+            <p>No orders found for that phone number and email. Double-check they match exactly what you used when ordering.</p>
+            <a href="menu.html" class="btn btn-primary">Browse Menu</a>
+          </div>
+        `;
+      } else {
+        renderOrderHistory(orders);
+      }
+      resultsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      feedback.textContent = err.message;
+      feedback.hidden = false;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Find My Orders';
     }
-    container.innerHTML = `<p class="empty-state">Couldn't load your orders: ${escapeHtml(err.message)}</p>`;
-  }
+  });
 });

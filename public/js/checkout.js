@@ -1,6 +1,7 @@
 const DELIVERY_FEE = 2.99;
 const FREE_DELIVERY_THRESHOLD = 25;
 const ONLINE_DISCOUNT_RATE = 0.15;
+const MIN_DELIVERY_ORDER = 15;
 
 function currentOrderType() {
   const checked = document.querySelector('input[name="orderType"]:checked');
@@ -45,6 +46,20 @@ function renderCheckoutSummary() {
     addressInput.required = false;
     cityInput.required = false;
   }
+
+  const belowDeliveryMinimum = orderType === 'Delivery' && subtotal < MIN_DELIVERY_ORDER;
+  const minimumNote = document.getElementById('delivery-minimum-note');
+  if (belowDeliveryMinimum) {
+    minimumNote.textContent = `Add ${formatCurrency(MIN_DELIVERY_ORDER - subtotal)} more to reach the £${MIN_DELIVERY_ORDER.toFixed(2)} minimum for delivery, or switch to pickup.`;
+    minimumNote.hidden = false;
+  } else {
+    minimumNote.hidden = true;
+  }
+
+  const placeOrderBtn = document.getElementById('place-order-btn');
+  placeOrderBtn.disabled = belowDeliveryMinimum;
+
+  return { belowDeliveryMinimum };
 }
 
 function showCheckoutFeedback(message, type) {
@@ -54,9 +69,17 @@ function showCheckoutFeedback(message, type) {
   feedback.hidden = false;
 }
 
+function prefillGuestDetails() {
+  const saved = getGuestDetails();
+  if (!saved) return;
+  if (saved.customerName) document.getElementById('customerName').value = saved.customerName;
+  if (saved.phone) document.getElementById('phone').value = saved.phone;
+  if (saved.email) document.getElementById('email').value = saved.email;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  if (!isLoggedIn()) {
-    window.location.href = 'login.html?redirect=checkout.html';
+  if (!hasGuestDetails()) {
+    redirectToGuestGate('checkout.html');
     return;
   }
 
@@ -64,11 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('checkout-form');
   const placeOrderBtn = document.getElementById('place-order-btn');
 
-  const user = getCustomerUser();
-  if (user) {
-    document.getElementById('customerName').value = user.name;
-    document.getElementById('email').value = user.email;
-  }
+  prefillGuestDetails();
 
   if (new URLSearchParams(window.location.search).get('cancelled') === '1') {
     showCheckoutFeedback('Payment was cancelled — your cart is still saved, try again when ready.', 'error');
@@ -95,14 +114,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const { belowDeliveryMinimum } = renderCheckoutSummary();
+    if (belowDeliveryMinimum) {
+      showCheckoutFeedback(`Minimum order for delivery is ${formatCurrency(MIN_DELIVERY_ORDER)}. Add more items or switch to pickup.`, 'error');
+      return;
+    }
+
     placeOrderBtn.disabled = true;
     placeOrderBtn.textContent = 'Redirecting to payment…';
 
     const formData = new FormData(form);
-    const payload = {
+    const guestDetails = {
       customerName: formData.get('customerName'),
       phone: formData.get('phone'),
-      email: formData.get('email') || undefined,
+      email: formData.get('email'),
+    };
+    const payload = {
+      ...guestDetails,
       orderType: formData.get('orderType'),
       address: formData.get('address') || undefined,
       city: formData.get('city') || undefined,
@@ -124,14 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const { checkoutUrl } = await apiRequest('/orders', {
         method: 'POST',
         body: JSON.stringify(payload),
-        headers: authHeaders(),
       });
+      saveGuestDetails(guestDetails);
       window.location.href = checkoutUrl;
     } catch (err) {
-      if (err.status === 401) {
-        window.location.href = 'login.html?redirect=checkout.html';
-        return;
-      }
       showCheckoutFeedback(err.message, 'error');
       placeOrderBtn.disabled = false;
       placeOrderBtn.textContent = 'Continue to Payment';

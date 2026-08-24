@@ -1,17 +1,15 @@
 const mongoose = require('mongoose');
 
+// Represents a guest customer, identified by phone + email rather than a password-based account —
+// created/updated automatically the first time someone places an order with those details, and
+// reused afterwards to link up their order history and marketing preferences.
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, lowercase: true, unique: true },
-    // sparse so this unique index doesn't fail to build against any accounts created before phone
-    // numbers existed on this model — new registrations still always require one (enforced in the
-    // /register route), this only keeps old accounts from blocking the index.
-    phone: { type: String, required: true, trim: true, unique: true, sparse: true },
-    phoneVerified: { type: Boolean, default: false },
-    passwordHash: { type: String, required: true },
-    failedLoginAttempts: { type: Number, default: 0 },
-    lockedUntil: { type: Date },
+    email: { type: String, required: true, trim: true, lowercase: true },
+    phone: { type: String, required: true, trim: true, unique: true },
+    marketingOptOut: { type: Boolean, default: false },
+    unsubscribeToken: { type: String },
   },
   { timestamps: true }
 );

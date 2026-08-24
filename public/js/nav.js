@@ -1,4 +1,4 @@
-// Bun 'n Dough is open every day 3PM–8AM, crossing midnight — "open" whenever the local hour is
+// Bun 'n Dough is open every day 15:00–08:00, crossing midnight — "open" whenever the local hour is
 // 15 or later, or before 8. Injected into the navbar on every page via this one shared script,
 // so there's nothing to keep in sync across each HTML file.
 function isOpenNow() {
@@ -20,7 +20,7 @@ function renderLiveStatus() {
   }
 
   badge.className = `live-status ${open ? 'live-status-open' : 'live-status-closed'}`;
-  badge.innerHTML = `<span class="live-status-dot"></span>${open ? 'Open Now' : 'Closed · Opens 3PM'}`;
+  badge.innerHTML = `<span class="live-status-dot"></span>${open ? 'Open Now' : 'Closed · Opens 15:00'}`;
 }
 
 // Adds a raised, slightly denser look to the sticky header once the page has scrolled, and shows/

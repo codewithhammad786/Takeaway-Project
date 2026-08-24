@@ -1,12 +1,14 @@
 const express = require('express');
 const Order = require('../models/Order');
+const User = require('../models/User');
 const stripe = require('../config/stripe');
-const requireCustomer = require('../middleware/requireCustomer');
-const { buildOrderItems, computeTotals, OrderValidationError } = require('../utils/pricing');
+const { buildOrderItems, computeTotals, OrderValidationError, MIN_DELIVERY_ORDER } = require('../utils/pricing');
+const { normalizePhone } = require('../utils/twilioVerify');
 
 const router = express.Router();
 
 const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function generateOrderNumber() {
   const timePart = Date.now().toString(36).toUpperCase();
@@ -14,8 +16,33 @@ function generateOrderNumber() {
   return `BD-${timePart}-${randomPart}`;
 }
 
-// POST /api/orders — creates a pending order and a Stripe Checkout Session to pay for it. Requires login.
-router.post('/', requireCustomer, async (req, res, next) => {
+// Finds or creates the guest customer record for this phone number, keeping name/email up to date
+// — this is what lets a phone+email lookup later surface their order history, with no account or
+// password ever required.
+async function upsertGuestCustomer({ name, phone, email }) {
+  const normalizedPhone = normalizePhone(phone);
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedPhone) {
+    const err = new Error('A valid phone number is required');
+    err.status = 400;
+    throw err;
+  }
+
+  let customer = await User.findOne({ phone: normalizedPhone });
+  if (customer) {
+    customer.name = name;
+    customer.email = normalizedEmail;
+    await customer.save();
+  } else {
+    customer = await User.create({ name, phone: normalizedPhone, email: normalizedEmail });
+  }
+  return customer;
+}
+
+// POST /api/orders — creates a pending order and a Stripe Checkout Session to pay for it. No login
+// required — just a name, phone, and email, which also becomes/updates their guest customer record.
+router.post('/', async (req, res, next) => {
   try {
     const { customerName, phone, email, orderType, address, city, postcode, notes, items } = req.body;
 
@@ -24,6 +51,9 @@ router.post('/', requireCustomer, async (req, res, next) => {
     }
     if (!phone || !PHONE_REGEX.test(phone)) {
       return res.status(400).json({ message: 'A valid phone number is required' });
+    }
+    if (!email || !EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ message: 'A valid email is required' });
     }
     if (!['Delivery', 'Pickup'].includes(orderType)) {
       return res.status(400).json({ message: 'Order type must be Delivery or Pickup' });
@@ -44,12 +74,20 @@ router.post('/', requireCustomer, async (req, res, next) => {
 
     const { subtotal, discount, deliveryFee, total } = computeTotals(orderItems, orderType);
 
+    if (orderType === 'Delivery' && subtotal < MIN_DELIVERY_ORDER) {
+      return res.status(400).json({
+        message: `Minimum order for delivery is £${MIN_DELIVERY_ORDER.toFixed(2)} (before discount). Your subtotal is £${subtotal.toFixed(2)} — add more items or switch to pickup.`,
+      });
+    }
+
+    const customer = await upsertGuestCustomer({ name: customerName.trim(), phone, email });
+
     const order = await Order.create({
       orderNumber: generateOrderNumber(),
-      user: req.userId,
+      user: customer._id,
       customerName: customerName.trim(),
       phone: phone.trim(),
-      email: email ? email.trim() : undefined,
+      email: email.trim(),
       orderType,
       address: orderType === 'Delivery' ? address.trim() : undefined,
       city: orderType === 'Delivery' ? city.trim() : undefined,
@@ -77,7 +115,7 @@ router.post('/', requireCustomer, async (req, res, next) => {
           quantity: 1,
         },
       ],
-      customer_email: email ? email.trim() : undefined,
+      customer_email: email.trim(),
       metadata: { orderId: order._id.toString() },
       success_url: `${origin}/order-confirmation.html?orderId=${order._id}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout.html?cancelled=1`,
@@ -88,19 +126,27 @@ router.post('/', requireCustomer, async (req, res, next) => {
 
     res.status(201).json({ orderId: order._id, checkoutUrl: session.url });
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+    }
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Some of the details provided were invalid — please check your name, phone, and email and try again.' });
+    }
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'That phone number or email is already in use by another order — please double-check your details and try again.' });
+    }
     next(err);
   }
 });
 
-// POST /api/orders/:id/confirm-payment — verifies a completed Stripe Checkout Session and marks the order paid.
-router.post('/:id/confirm-payment', requireCustomer, async (req, res, next) => {
+// POST /api/orders/:id/confirm-payment — verifies a completed Stripe Checkout Session and marks the
+// order paid. Knowing both the order ID and its exact Stripe session ID is the "proof" here, since
+// there's no login — the session ID isn't something a stranger could guess.
+router.post('/:id/confirm-payment', async (req, res, next) => {
   try {
     const { sessionId } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.user.toString() !== req.userId) {
-      return res.status(403).json({ message: 'This order does not belong to your account' });
-    }
 
     if (order.paymentStatus === 'Paid') {
       return res.json(order);
@@ -125,29 +171,24 @@ router.post('/:id/confirm-payment', requireCustomer, async (req, res, next) => {
   }
 });
 
-// GET /api/orders/:id — only the owning customer can view their order.
-router.get('/:id', requireCustomer, async (req, res, next) => {
+// GET /api/orders/:id — the confirmation page for a specific order. The order ID itself (a long,
+// unguessable Mongo ID) is what limits this to people who actually placed or received it.
+router.get('/:id', async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.user.toString() !== req.userId) {
-      return res.status(403).json({ message: 'This order does not belong to your account' });
-    }
     res.json(order);
   } catch (err) {
     next(err);
   }
 });
 
-// DELETE /api/orders/:id — customers can only remove their own unpaid/abandoned orders,
-// never a paid one (the business needs those records).
-router.delete('/:id', requireCustomer, async (req, res, next) => {
+// DELETE /api/orders/:id — removes an unpaid/abandoned order, never a paid one (the business needs
+// those records).
+router.delete('/:id', async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.user.toString() !== req.userId) {
-      return res.status(403).json({ message: 'This order does not belong to your account' });
-    }
     if (order.paymentStatus === 'Paid') {
       return res.status(400).json({ message: 'Paid orders cannot be removed' });
     }

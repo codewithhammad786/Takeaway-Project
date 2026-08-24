@@ -3,6 +3,7 @@ const MenuItem = require('../models/MenuItem');
 const FREE_DELIVERY_THRESHOLD = 25;
 const DELIVERY_FEE = 2.99;
 const ONLINE_DISCOUNT_RATE = 0.15;
+const MIN_DELIVERY_ORDER = 15;
 
 class OrderValidationError extends Error {}
 
@@ -37,6 +38,7 @@ async function buildOrderItems(items) {
     }
 
     let selectedOptions = [];
+    let selectedGroups = [];
     let price = variant.price;
 
     if (dbItem.optionGroups && dbItem.optionGroups.length) {
@@ -56,6 +58,9 @@ async function buildOrderItems(items) {
         for (const label of selectedForGroup) {
           price += priceByLabel.get(label);
           selectedOptions.push(label);
+        }
+        if (selectedForGroup.length) {
+          selectedGroups.push({ label: group.label, choices: selectedForGroup });
         }
       }
       price = round2(price);
@@ -80,6 +85,7 @@ async function buildOrderItems(items) {
       price,
       quantity,
       selectedOptions,
+      selectedGroups,
     });
   }
 
@@ -101,4 +107,5 @@ module.exports = {
   FREE_DELIVERY_THRESHOLD,
   DELIVERY_FEE,
   ONLINE_DISCOUNT_RATE,
+  MIN_DELIVERY_ORDER,
 };

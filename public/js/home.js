@@ -1,15 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
   const heroPhoto = document.getElementById('hero-photo');
+  const heroAccent = document.getElementById('hero-photo-accent');
   const heroFallback = document.getElementById('hero-emoji-fallback');
+
   if (heroPhoto) {
     heroPhoto.addEventListener(
       'error',
       () => {
         heroPhoto.hidden = true;
+        if (heroAccent) heroAccent.hidden = true;
         if (heroFallback) heroFallback.hidden = false;
       },
       { once: true }
     );
+  }
+
+  if (heroAccent) {
+    heroAccent.addEventListener('error', () => { heroAccent.hidden = true; }, { once: true });
   }
 });
 
@@ -51,16 +58,24 @@ function renderTeaserCard(item) {
   const imageInner = item.image
     ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" data-fallback="${escapeHtml(item.icon || '🍽️')}" />`
     : `<div class="deal-card-icon">${escapeHtml(item.icon || '🍽️')}</div>`;
-  const badge = item.badge ? `<span class="deal-badge">${escapeHtml(item.badge)}</span>` : '';
+  const flag = item.badge
+    ? `<span class="deal-card-flag">${escapeHtml(item.badge)}</span>`
+    : item.popular
+      ? `<span class="deal-card-flag deal-card-flag-popular">🔥 Popular</span>`
+      : '';
 
   return `
-    <a class="deal-card" href="menu.html?category=${encodeURIComponent(item.category)}">
+    <a class="deal-card" href="menu.html?category=${encodeURIComponent(item.category)}" data-item-id="${escapeHtml(item._id)}">
       <div class="deal-card-image-wrap">
         ${imageInner}
-        ${badge}
+        ${flag}
+        <button type="button" class="deal-card-quick-add" aria-label="Quick add ${escapeHtml(item.name)} to cart" data-quick-add>+</button>
+        <span class="deal-card-price">${price}</span>
       </div>
-      <h3 class="deal-card-name">${escapeHtml(item.name)} ${item.popular && !item.badge ? '<span class="badge-popular">Popular</span>' : ''}</h3>
-      <p class="deal-card-price">${price}</p>
+      <div class="deal-card-info">
+        <span class="deal-card-category">${escapeHtml(item.category)}</span>
+        <h3 class="deal-card-name">${escapeHtml(item.name)}</h3>
+      </div>
     </a>
   `;
 }
@@ -84,6 +99,24 @@ function renderCarouselInto(carousel, items, { prevId, nextId, emptyMessage } = 
       { once: true }
     );
   });
+
+  if (typeof openItemModal === 'function') {
+    carousel.querySelectorAll('[data-quick-add]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!hasGuestDetails()) {
+          redirectToGuestGate('index.html');
+          return;
+        }
+
+        const card = btn.closest('.deal-card');
+        const item = items.find((i) => i._id === card.getAttribute('data-item-id'));
+        if (item) openItemModal(item);
+      });
+    });
+  }
 
   if (prevId) {
     document.getElementById(prevId)?.addEventListener('click', () => {
@@ -114,36 +147,6 @@ async function loadCarousel({ endpoint, containerId, prevId, nextId, hideSection
   }
 }
 
-// "Order Again" + "You Might Also Like" — only shown to logged-in customers with real order
-// history, built from what they've actually bought before (see /api/auth/recommendations).
-async function loadPersonalizedSections() {
-  if (typeof isLoggedIn !== 'function' || !isLoggedIn()) return;
-
-  try {
-    const { orderAgain, recommended } = await apiRequest('/auth/recommendations', { headers: authHeaders() });
-
-    if (orderAgain.length) {
-      const section = document.getElementById('order-again-section');
-      const carousel = document.getElementById('order-again-carousel');
-      if (section && carousel) {
-        section.hidden = false;
-        renderCarouselInto(carousel, orderAgain, { prevId: 'order-again-prev', nextId: 'order-again-next' });
-      }
-    }
-
-    if (recommended.length) {
-      const section = document.getElementById('recommended-section');
-      const carousel = document.getElementById('recommended-carousel');
-      if (section && carousel) {
-        section.hidden = false;
-        renderCarouselInto(carousel, recommended, { prevId: 'recommended-prev', nextId: 'recommended-next' });
-      }
-    }
-  } catch (err) {
-    // Personalization is a bonus, not critical — the rest of the home page still works fine.
-  }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   loadCarousel({
     endpoint: '/menu?category=Popular%20Deals',
@@ -162,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   loadTrustRating();
-  loadPersonalizedSections();
 });
 
 // Shows the real average from actual submitted reviews — never a made-up number. If there are no

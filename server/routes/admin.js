@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const { authenticator } = require('otplib');
@@ -9,8 +10,10 @@ const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const Review = require('../models/Review');
 const Admin = require('../models/Admin');
+const User = require('../models/User');
 const requireAdmin = require('../middleware/requireAdmin');
 const upload = require('../middleware/upload');
+const { sendMail } = require('../utils/mailer');
 const {
   signAdminSessionToken,
   signPendingTwoFactorToken,
@@ -222,6 +225,19 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res, next) => {
   }
 });
 
+// DELETE /api/admin/orders/:id — lets the manager remove an order (e.g. a stray test order, or a
+// mistaken/duplicate one) from the dashboard entirely. Unlike the customer-facing delete route,
+// this isn't limited to unpaid orders — it's a manager action, not a self-service cancellation.
+router.delete('/orders/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json({ message: 'Order deleted' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/admin/menu — list every menu item (including unavailable) for the image manager
 router.get('/menu', requireAdmin, async (req, res, next) => {
   try {
@@ -264,6 +280,25 @@ router.post('/menu/:id/image', requireAdmin, (req, res, next) => {
       next(err2);
     }
   });
+});
+
+// DELETE /api/admin/menu/:id — permanently removes a menu item (e.g. one being discontinued).
+// Existing orders are unaffected since they store a denormalized copy of the item's name/price at
+// the time it was ordered, not a live reference.
+router.delete('/menu/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const item = await MenuItem.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Menu item not found' });
+
+    if (item.image && item.image.startsWith('/uploads/menu-images/')) {
+      const imagePath = path.join(__dirname, '..', item.image);
+      fs.unlink(imagePath, () => {});
+    }
+
+    res.json({ message: 'Menu item deleted' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // GET /api/admin/reviews — list every review (pending + approved) for moderation
@@ -351,6 +386,102 @@ router.get('/stats', requireAdmin, async (req, res, next) => {
       last7Days,
       topItems,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+function escapeHtmlServer(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildDealEmailHtml({ name, subject, message, orderUrl, unsubscribeUrl }) {
+  const safeMessage = escapeHtmlServer(message).replace(/\n/g, '<br>');
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#fff8e7;font-family:'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:24px;">
+    <div style="background:#121212;border-radius:16px 16px 0 0;padding:24px;text-align:center;">
+      <span style="color:#ffc72c;font-size:1.4rem;font-weight:800;">🍔 Bun 'n Dough</span>
+    </div>
+    <div style="background:#ffffff;padding:28px 24px;border-radius:0 0 16px 16px;">
+      <p style="margin:0 0 12px;color:#262220;">Hi ${escapeHtmlServer(name)},</p>
+      <h2 style="color:#262220;margin:0 0 14px;">${escapeHtmlServer(subject)}</h2>
+      <p style="color:#262220;line-height:1.6;margin:0 0 22px;">${safeMessage}</p>
+      <div style="text-align:center;">
+        <a href="${orderUrl}" style="display:inline-block;background:#ffc72c;color:#121212;font-weight:700;padding:12px 26px;border-radius:999px;text-decoration:none;">Order Now</a>
+      </div>
+    </div>
+    <p style="text-align:center;color:#8a8a8a;font-size:0.78rem;margin-top:16px;">
+      You're receiving this because you've ordered from Bun 'n Dough before.<br>
+      <a href="${unsubscribeUrl}" style="color:#8a8a8a;">Unsubscribe from deal emails</a>
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
+// GET /api/admin/campaigns/recipients-count — how many customers would receive a deal email right now.
+router.get('/campaigns/recipients-count', requireAdmin, async (req, res, next) => {
+  try {
+    const count = await User.countDocuments({ marketingOptOut: { $ne: true } });
+    res.json({ count });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/campaigns/send — emails every customer who hasn't unsubscribed with a deal
+// announcement. Each recipient gets their own unsubscribe link tied to their account.
+router.post('/campaigns/send', requireAdmin, async (req, res, next) => {
+  try {
+    const { subject, message } = req.body;
+    if (!subject || !subject.trim()) {
+      return res.status(400).json({ message: 'Subject is required' });
+    }
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const recipients = await User.find({ marketingOptOut: { $ne: true } });
+    if (!recipients.length) {
+      return res.status(400).json({ message: 'No customers are eligible to receive emails right now' });
+    }
+
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const orderUrl = `${origin}/menu.html`;
+    let sent = 0;
+    let failed = 0;
+
+    for (const user of recipients) {
+      if (!user.unsubscribeToken) {
+        user.unsubscribeToken = crypto.randomBytes(24).toString('hex');
+        await user.save();
+      }
+
+      const unsubscribeUrl = `${origin}/api/marketing/unsubscribe?token=${user.unsubscribeToken}`;
+      const html = buildDealEmailHtml({ name: user.name, subject, message, orderUrl, unsubscribeUrl });
+
+      try {
+        await sendMail({
+          to: user.email,
+          subject,
+          html,
+          text: `${message}\n\nOrder now: ${orderUrl}\n\nUnsubscribe: ${unsubscribeUrl}`,
+        });
+        sent += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(`Failed to send deal email to ${user.email}:`, err.message);
+      }
+    }
+
+    res.json({ sent, failed, total: recipients.length });
   } catch (err) {
     next(err);
   }

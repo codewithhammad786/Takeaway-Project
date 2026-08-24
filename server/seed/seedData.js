@@ -90,14 +90,6 @@ const KIDS_MEAL_BURGER_CHOICE = {
   required: true,
 };
 
-// Choice labels are suffixed "(1st)"/"(2nd)" so they stay unique across the two groups — the order
-// pricing engine matches selections by label across ALL of an item's option groups at once, so two
-// groups on the same item can never share identical choice labels without one masking the other.
-const TWO_BURGER_DEAL_GROUPS = [
-  { label: 'Choose your 1st burger', choices: freeChoices(['Zinger Burger (1st)', 'Cheeseburger (1st)']), max: 1, required: true },
-  { label: 'Choose your 2nd burger', choices: freeChoices(['Zinger Burger (2nd)', 'Cheeseburger (2nd)']), max: 1, required: true },
-];
-
 const MAIN_CHOICE = {
   label: 'Choose your main',
   choices: freeChoices(['Burger', 'Kebab', 'Wrap']),
@@ -153,6 +145,26 @@ const PIZZA_SIZES = [
   { label: '12" Large', price: 9.99 },
   { label: '16" X-Large', price: 12.99 },
   { label: '20" Ultimate', price: 17.99 },
+];
+
+// The Crown Pizza is its own signature line with its own sizes (no Regular) and its own topping
+// list, separate from the standard PIZZA_TOPPINGS used by the build-your-own-style pizzas above.
+const CROWN_PIZZA_SIZES = [
+  { label: 'Large', price: 11.99 },
+  { label: 'Extra Large', price: 15.99 },
+  { label: 'Ultimate', price: 19.99 },
+];
+
+const CROWN_PIZZA_TOPPINGS = [
+  "Bun 'n Dough Signature Sauce",
+  'Mediterranean Chicken',
+  'Crispy Chicken',
+  'Red Onion',
+  'Black Olives',
+  'Sweetcorn',
+  'Mixed Pepper',
+  'Red Chilli Flakes',
+  'Jalapenos',
 ];
 
 const EXTRA_TOPPING_PRICE = 1.0;
@@ -229,7 +241,6 @@ const ITEM_IMAGE_OVERRIDE = {
   'Garlic Bread Pizza': pexels(1435907),
   'Margherita Pizza': pexels(14590497),
   '6 Wings': pexels(10648394),
-  'Select 2 Burgers': pexels(2119758),
   "Kid's Meal": pexels(32991898),
 
   // Pizzas — a distinct photo per pizza reflecting its actual toppings where a good match exists.
@@ -295,15 +306,6 @@ const rawItems = [
     variants: singlePrice(8.99),
     optionGroups: [FLAVOUR_OPTIONS],
     badge: 'BUY 1 GET 1',
-  },
-  {
-    name: 'Select 2 Burgers',
-    description: 'Pick any 2 burgers from Zinger or Cheeseburger — mix and match.',
-    category: 'Popular Deals',
-    icon: '🍔',
-    variants: singlePrice(8.99),
-    optionGroups: TWO_BURGER_DEAL_GROUPS,
-    badge: 'GREAT VALUE',
   },
   {
     name: "Kid's Meal",
@@ -425,6 +427,16 @@ const rawItems = [
   { name: 'Veggie Primo', description: 'Tomato sauce, mozzarella cheese, mushrooms, mixed peppers, red onion and sweetcorn.', category: 'Pizza', icon: '🍕', variants: PIZZA_SIZES, customization: pizzaCustomization(['Mushrooms', 'Mixed Peppers', 'Red Onions', 'Sweetcorn']) },
   { name: 'Veggie Inferno', description: 'Tomato sauce, mozzarella cheese, mushrooms, mixed peppers, red onion, green chilli and jalapeno.', category: 'Pizza', icon: '🍕', variants: PIZZA_SIZES, customization: pizzaCustomization(['Mushrooms', 'Mixed Peppers', 'Red Onions', 'Green Chillies', 'Jalapenos']) },
   { name: 'Margherita', description: 'Tomato sauce, mozzarella cheese and herbs.', category: 'Pizza', icon: '🍕', variants: PIZZA_SIZES, customization: pizzaCustomization([]) },
+  {
+    name: "Bun 'n Dough Crown Pizza",
+    description: "Our signature crown pizza — topped with Bun 'n Dough sauce and your choice of extras.",
+    category: 'Pizza',
+    icon: '🍕',
+    variants: CROWN_PIZZA_SIZES,
+    optionGroups: [
+      { label: 'Choose your toppings', choices: freeChoices(CROWN_PIZZA_TOPPINGS), max: CROWN_PIZZA_TOPPINGS.length, required: false },
+    ],
+  },
 
   // ---------- Build Your Own Pizza ----------
   {
@@ -510,7 +522,6 @@ const rawItems = [
   { name: 'Kinder Bueno Milkshake', description: 'Thick and creamy Kinder Bueno milkshake.', category: 'Milkshakes', icon: '🥤', variants: singlePrice(4.99) },
   { name: 'Ferrero Rocher Milkshake', description: 'Thick and creamy Ferrero Rocher milkshake.', category: 'Milkshakes', icon: '🥤', variants: singlePrice(4.99) },
   { name: 'Biscoff Milkshake', description: 'Thick and creamy Biscoff milkshake.', category: 'Milkshakes', icon: '🥤', variants: singlePrice(4.99) },
-  { name: 'Strawberry Milkshake', description: 'Thick and creamy strawberry milkshake.', category: 'Milkshakes', icon: '🥤', variants: singlePrice(4.99) },
 ];
 
 module.exports = rawItems.map((item) => ({

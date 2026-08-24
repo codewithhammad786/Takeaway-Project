@@ -71,31 +71,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  if (!isLoggedIn()) {
-    window.location.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-    return;
-  }
-
   try {
     if (sessionId) {
       // Just returned from Stripe Checkout — verify payment server-side before showing the order.
       const order = await apiRequest(`/orders/${orderId}/confirm-payment`, {
         method: 'POST',
         body: JSON.stringify({ sessionId }),
-        headers: authHeaders(),
       });
       clearCart();
       renderOrder(container, order);
     } else {
-      const order = await apiRequest(`/orders/${orderId}`, { headers: authHeaders() });
+      const order = await apiRequest(`/orders/${orderId}`);
       renderOrder(container, order);
     }
   } catch (err) {
-    if (err.status === 401) {
-      clearCustomerSession();
-      window.location.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-      return;
-    }
     renderConfirmationError(container, 'Payment or order issue', err.message);
   }
 });

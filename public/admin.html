@@ -8,10 +8,22 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍔</text></svg>" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
+<body class="admin-page">
   <header class="site-header">
     <div class="container header-inner">
-      <span class="logo">🍔 Bun 'n Dough <span class="sticker sticker-value">🔒 Manager</span></span>
+      <span class="logo">
+        <svg class="logo-mark" viewBox="0 0 44 44" width="36" height="36" aria-hidden="true">
+          <circle cx="22" cy="22" r="20" fill="#141414" stroke="#ffc72c" stroke-width="2"/>
+          <path d="M12 17 Q22 10 32 17" stroke="#ffc72c" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <rect x="12" y="20.3" width="20" height="3.4" rx="1.7" fill="#ffc72c"/>
+          <path d="M12 27 Q22 32 32 27" stroke="#ffc72c" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span class="logo-text">
+          <span class="logo-name">Bun 'n Dough</span>
+          <span class="logo-tag">Manager Dashboard</span>
+        </span>
+        <span class="sticker sticker-value">🔒 Manager</span>
+      </span>
       <nav class="nav" id="nav-menu">
         <span id="admin-logout-wrap" hidden>
           <button id="admin-logout" class="btn btn-outline" style="padding: 6px 16px; font-size: 0.8rem;">Log Out</button>
@@ -52,7 +64,7 @@
             <div id="admin-login-feedback" class="feedback error" hidden></div>
             <button type="submit" class="btn btn-primary btn-block" id="admin-login-submit">Log In</button>
           </form>
-          <p class="admin-login-note">This is the manager login — customers should use <a href="login.html">the regular customer login</a> instead.</p>
+          <p class="admin-login-note">This is the manager login — customers don't need to log in at all, they just order as a guest from <a href="index.html">the main site</a>.</p>
         </div>
 
         <div id="admin-panel" hidden>
@@ -61,6 +73,7 @@
             <button type="button" class="admin-tab" data-tab="orders">Orders</button>
             <button type="button" class="admin-tab" data-tab="images">Menu Images</button>
             <button type="button" class="admin-tab" data-tab="reviews">Reviews</button>
+            <button type="button" class="admin-tab" data-tab="deals">Deals</button>
             <button type="button" class="admin-tab" data-tab="settings">Settings</button>
           </div>
 
@@ -110,8 +123,15 @@
                   <option value="all">All Orders</option>
                 </select>
               </div>
+              <label class="admin-autoprint-toggle">
+                <input type="checkbox" id="autoprint-toggle" />
+                🖨️ Auto-print new paid orders on this computer
+              </label>
               <span id="admin-last-updated" class="admin-last-updated"></span>
             </div>
+            <p class="admin-autoprint-note">
+              Needs this tab open on the till/counter computer with a printer set as default — it checks for new paid orders every 15 seconds and sends the receipt to print automatically. Your browser may still show a print confirmation each time unless it's set up for silent printing.
+            </p>
             <div class="admin-orders" id="admin-orders">
               <p class="loading">Loading orders…</p>
             </div>
@@ -145,6 +165,26 @@
             </div>
             <div class="admin-reviews" id="admin-reviews">
               <p class="loading">Loading reviews…</p>
+            </div>
+          </div>
+
+          <div id="admin-tab-deals" class="admin-tab-panel" hidden>
+            <div class="admin-settings-box deals-composer">
+              <h3>📣 Send a Deal to Your Customers</h3>
+              <p class="admin-settings-hint">Emails everyone who has ordered before and hasn't unsubscribed. Every email includes a working unsubscribe link, so this stays compliant with UK marketing rules.</p>
+              <p class="deals-recipient-count">Sending to <strong id="deals-recipient-count">…</strong> customers</p>
+              <form id="deals-form">
+                <div class="form-group">
+                  <label for="deal-subject">Subject</label>
+                  <input type="text" id="deal-subject" maxlength="120" required placeholder="🍔 Buy One Get One Free Burger — Today Only!" />
+                </div>
+                <div class="form-group">
+                  <label for="deal-message">Message</label>
+                  <textarea id="deal-message" rows="6" maxlength="2000" required placeholder="Tell your customers about the deal, how long it lasts, and how to claim it..."></textarea>
+                </div>
+                <div id="deals-feedback" class="feedback" hidden></div>
+                <button type="submit" class="btn btn-primary" id="deals-send-btn">Send to All Customers</button>
+              </form>
             </div>
           </div>
 
@@ -192,7 +232,18 @@
   <footer class="site-footer">
     <div class="container footer-grid">
       <div class="footer-col footer-brand">
-        <span class="footer-logo">🍔 Bun 'n Dough</span>
+        <span class="footer-logo">
+          <svg class="logo-mark" viewBox="0 0 44 44" width="40" height="40" aria-hidden="true">
+            <circle cx="22" cy="22" r="20" fill="#141414" stroke="#ffc72c" stroke-width="2"/>
+            <path d="M12 17 Q22 10 32 17" stroke="#ffc72c" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <rect x="12" y="20.3" width="20" height="3.4" rx="1.7" fill="#ffc72c"/>
+            <path d="M12 27 Q22 32 32 27" stroke="#ffc72c" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          </svg>
+          <span class="logo-text">
+            <span class="logo-name">Bun 'n Dough</span>
+            <span class="logo-tag">Manager Dashboard</span>
+          </span>
+        </span>
         <span class="footer-est">Manager Dashboard · Est. 2022</span>
         <p>Internal tools for running Bun 'n Dough — live orders, earnings, menu photos, and customer reviews, all in one place.</p>
         <span class="live-status live-status-open admin-footer-live" id="admin-system-status">
@@ -202,9 +253,10 @@
       <div class="footer-col">
         <h4>Business Quick Reference</h4>
         <ul>
-          <li><svg class="footer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> 40 Horse Fair, Birmingham B1 1DA</li>
+          <li><svg class="footer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> <a href="https://maps.google.com/?q=40+Horse+Fair,+Birmingham+B1+1DA" target="_blank" rel="noopener">40 Horse Fair, Birmingham B1 1DA</a></li>
           <li><svg class="footer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> <a href="tel:01214484142">0121 448 4142</a></li>
-          <li><svg class="footer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg> Every day, 3:00 PM – 8:00 AM</li>
+          <li><svg class="footer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg> Every day, 15:00 – 08:00</li>
+          <li class="footer-branch-note">+ Stoke-on-Trent branch — <a href="contact.html">view details</a></li>
         </ul>
       </div>
       <div class="footer-col">
