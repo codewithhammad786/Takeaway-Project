@@ -1,17 +1,9 @@
-// Bun 'n Dough is open every day 15:00–08:00, crossing midnight — "open" whenever the local hour is
-// 15 or later, or before 8. Injected into the navbar on every page via this one shared script,
-// so there's nothing to keep in sync across each HTML file.
-function isOpenNow() {
-  const hour = new Date().getHours();
-  return hour >= 15 || hour < 8;
-}
-
 function renderLiveStatus() {
   const nav = document.getElementById('nav-menu');
   if (!nav) return;
 
   let badge = document.getElementById('live-status-badge');
-  const open = isOpenNow();
+  const open = isShopOpen();
 
   if (!badge) {
     badge = document.createElement('span');

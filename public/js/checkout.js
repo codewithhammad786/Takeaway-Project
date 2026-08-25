@@ -8,6 +8,30 @@ function currentOrderType() {
   return checked ? checked.value : 'Delivery';
 }
 
+// We're open 15:00–08:00, but Delivery only runs 19:00–08:00 — 15:00–19:00 is Pickup-only. This
+// keeps the Delivery radio in sync with that, disabling it (and bumping the selection to Pickup if
+// it was selected) whenever Delivery isn't currently available.
+function applyDeliveryAvailability() {
+  const deliveryRadio = document.querySelector('input[name="orderType"][value="Delivery"]');
+  const pickupRadio = document.querySelector('input[name="orderType"][value="Pickup"]');
+  const note = document.getElementById('delivery-hours-note');
+  if (!deliveryRadio || !pickupRadio || !note) return;
+
+  const available = isDeliveryAvailable();
+  deliveryRadio.disabled = !available;
+
+  if (!available) {
+    note.textContent = 'Delivery is available from 7pm — Pickup only for now.';
+    note.hidden = false;
+    if (deliveryRadio.checked) {
+      deliveryRadio.checked = false;
+      pickupRadio.checked = true;
+    }
+  } else {
+    note.hidden = true;
+  }
+}
+
 function renderCheckoutSummary() {
   const cart = getCart();
   const itemsContainer = document.getElementById('checkout-items');
@@ -93,6 +117,13 @@ document.addEventListener('DOMContentLoaded', () => {
     showCheckoutFeedback('Payment was cancelled — your cart is still saved, try again when ready.', 'error');
   }
 
+  if (!isShopOpen()) {
+    showCheckoutFeedback("We're closed right now — online ordering runs 3pm–8am. Please come back after 3pm.", 'error');
+    placeOrderBtn.disabled = true;
+    form.querySelectorAll('input, textarea').forEach((el) => (el.disabled = true));
+    return;
+  }
+
   if (!cart.length) {
     showCheckoutFeedback('Your cart is empty. Add items from the menu before checking out.', 'error');
     placeOrderBtn.disabled = true;
@@ -100,7 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  applyDeliveryAvailability();
   renderCheckoutSummary();
+  // Re-checked every minute so a customer sitting on this page across the 3pm/7pm/8am boundaries
+  // sees the order-type options and closed message update without needing to reload.
+  setInterval(() => {
+    applyDeliveryAvailability();
+    renderCheckoutSummary();
+  }, 60000);
 
   document.querySelectorAll('input[name="orderType"]').forEach((radio) => {
     radio.addEventListener('change', renderCheckoutSummary);
@@ -111,6 +149,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!form.checkValidity()) {
       form.reportValidity();
+      return;
+    }
+
+    if (!isShopOpen()) {
+      showCheckoutFeedback("We're closed right now — online ordering runs 3pm–8am. Please come back after 3pm.", 'error');
+      return;
+    }
+
+    if (currentOrderType() === 'Delivery' && !isDeliveryAvailable()) {
+      applyDeliveryAvailability();
+      showCheckoutFeedback('Delivery just closed for now (available again from 7pm) — please switch to Pickup.', 'error');
       return;
     }
 

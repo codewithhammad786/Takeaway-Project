@@ -7,6 +7,72 @@
   <meta name="description" content="Get in touch with Bun 'n Dough — find our Birmingham and Stoke-on-Trent branches, see opening hours, and read or leave a customer review." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍔</text></svg>" />
   <link rel="stylesheet" href="css/style.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://bunndough.com/#website",
+        "url": "https://bunndough.com/",
+        "name": "Bun 'n Dough",
+        "description": "Order pizza, burgers and grill online for delivery or pickup from Bun 'n Dough — Birmingham and Stoke-on-Trent."
+      },
+      {
+        "@type": "Restaurant",
+        "@id": "https://bunndough.com/#birmingham",
+        "name": "Bun 'n Dough - Birmingham",
+        "image": "https://images.pexels.com/photos/1435907/pexels-photo-1435907.jpeg?auto=compress&cs=tinysrgb&w=900",
+        "url": "https://bunndough.com/contact.html",
+        "telephone": "+441214484142",
+        "email": "info@bunndough.com",
+        "servesCuisine": ["Pizza", "Burgers", "Grill", "Kebab", "Persian"],
+        "priceRange": "££",
+        "acceptsReservations": false,
+        "hasMenu": "https://bunndough.com/menu.html",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "40 Horse Fair",
+          "addressLocality": "Birmingham",
+          "postalCode": "B1 1DA",
+          "addressCountry": "GB"
+        },
+        "openingHoursSpecification": {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "opens": "15:00",
+          "closes": "08:00"
+        }
+      },
+      {
+        "@type": "Restaurant",
+        "@id": "https://bunndough.com/#stoke",
+        "name": "Bun 'n Dough - Stoke-on-Trent",
+        "image": "https://images.pexels.com/photos/1435907/pexels-photo-1435907.jpeg?auto=compress&cs=tinysrgb&w=900",
+        "url": "https://bunndough.com/contact.html",
+        "telephone": "+441214484142",
+        "email": "info@bunndoughstoke.com",
+        "servesCuisine": ["Pizza", "Burgers", "Grill", "Kebab", "Persian"],
+        "priceRange": "££",
+        "acceptsReservations": false,
+        "hasMenu": "https://bunndough.com/menu.html",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "117 High Street",
+          "addressLocality": "Stoke-on-Trent",
+          "postalCode": "ST6 5TA",
+          "addressCountry": "GB"
+        },
+        "openingHoursSpecification": {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "opens": "15:00",
+          "closes": "05:00"
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 <body class="contact-page">
   <div class="promo-banner">🎉 Order online and get <strong>15% off</strong> — discount applied automatically at checkout!</div>
@@ -176,6 +242,7 @@
 
   <script src="js/api.js"></script>
   <script src="js/cart.js"></script>
+  <script src="js/hours.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/contact.js"></script>

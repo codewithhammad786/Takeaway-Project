@@ -4,6 +4,8 @@ const User = require('../models/User');
 const stripe = require('../config/stripe');
 const { buildOrderItems, computeTotals, OrderValidationError, MIN_DELIVERY_ORDER } = require('../utils/pricing');
 const { normalizePhone } = require('../utils/twilioVerify');
+const { sendOrderPaidWhatsApp } = require('../utils/whatsapp');
+const { isShopOpen, isDeliveryAvailable } = require('../utils/businessHours');
 
 const router = express.Router();
 
@@ -46,6 +48,9 @@ router.post('/', async (req, res, next) => {
   try {
     const { customerName, phone, email, orderType, address, city, postcode, notes, items } = req.body;
 
+    if (!isShopOpen()) {
+      return res.status(400).json({ message: "We're closed right now — online ordering runs 3pm–8am. Please come back after 3pm." });
+    }
     if (!customerName || !customerName.trim()) {
       return res.status(400).json({ message: 'Customer name is required' });
     }
@@ -57,6 +62,9 @@ router.post('/', async (req, res, next) => {
     }
     if (!['Delivery', 'Pickup'].includes(orderType)) {
       return res.status(400).json({ message: 'Order type must be Delivery or Pickup' });
+    }
+    if (orderType === 'Delivery' && !isDeliveryAvailable()) {
+      return res.status(400).json({ message: 'Delivery is only available from 7pm to 8am — please switch to Pickup, or try again after 7pm.' });
     }
     if (orderType === 'Delivery' && (!address || !address.trim() || !city || !city.trim())) {
       return res.status(400).json({ message: 'Address and city are required for delivery orders' });
@@ -164,6 +172,11 @@ router.post('/:id/confirm-payment', async (req, res, next) => {
 
     order.paymentStatus = 'Paid';
     await order.save();
+
+    // Fire-and-forget — a manager notification should never delay or break the customer's
+    // checkout response, so this isn't awaited and any failure is just logged.
+    const origin = `${req.protocol}://${req.get('host')}`;
+    sendOrderPaidWhatsApp(order, origin).catch((err) => console.error('WhatsApp order notification failed:', err.message));
 
     res.json(order);
   } catch (err) {

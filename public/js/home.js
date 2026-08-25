@@ -57,7 +57,7 @@ function renderTeaserCard(item) {
   const price = formatCurrency(item.variants[0].price);
   const imageInner = item.image
     ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" data-fallback="${escapeHtml(item.icon || '🍽️')}" />`
-    : `<div class="deal-card-icon">${escapeHtml(item.icon || '🍽️')}</div>`;
+    : `<div class="deal-card-icon" style="background: ${foodIconGlowBackground(item.icon, 0.16)};">${foodIconSvg(item.icon, 44)}</div>`;
   const flag = item.badge
     ? `<span class="deal-card-flag">${escapeHtml(item.badge)}</span>`
     : item.popular
@@ -91,9 +91,11 @@ function renderCarouselInto(carousel, items, { prevId, nextId, emptyMessage } = 
     img.addEventListener(
       'error',
       () => {
+        const iconKey = img.getAttribute('data-fallback');
         const fallback = document.createElement('div');
         fallback.className = 'deal-card-icon';
-        fallback.textContent = img.getAttribute('data-fallback') || '🍽️';
+        fallback.style.background = foodIconGlowBackground(iconKey, 0.16);
+        fallback.innerHTML = foodIconSvg(iconKey, 44);
         img.replaceWith(fallback);
       },
       { once: true }

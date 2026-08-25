@@ -6,7 +6,7 @@ function renderMenuCard(item) {
 
   const imageInner = item.image
     ? `<img class="menu-card-image" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" data-fallback="${escapeHtml(item.icon || '🍽️')}" />`
-    : `<div class="menu-card-icon">${escapeHtml(item.icon || '🍽️')}</div>`;
+    : `<div class="menu-card-icon" style="background: ${foodIconGlowBackground(item.icon, 0.16)};">${foodIconSvg(item.icon, 40)}</div>`;
 
   const dealBadgeHTML = item.badge ? `<span class="deal-badge">${escapeHtml(item.badge)}</span>` : '';
 
@@ -19,6 +19,7 @@ function renderMenuCard(item) {
       </div>
       <div class="menu-card-body">
         <h3>${escapeHtml(item.name)} ${item.popular && !item.badge ? '<span class="badge-popular">Popular</span>' : ''}</h3>
+        ${item.description ? `<p class="menu-card-desc">${escapeHtml(item.description)}</p>` : ''}
         <span class="price">${priceDisplay}</span>
       </div>
     </article>
@@ -59,9 +60,11 @@ function bindMenuCards(container, items) {
       img.addEventListener(
         'error',
         () => {
+          const iconKey = img.getAttribute('data-fallback');
           const fallback = document.createElement('div');
           fallback.className = 'menu-card-icon';
-          fallback.textContent = img.getAttribute('data-fallback') || '🍽️';
+          fallback.style.background = foodIconGlowBackground(iconKey, 0.16);
+          fallback.innerHTML = foodIconSvg(iconKey, 40);
           img.replaceWith(fallback);
         },
         { once: true }

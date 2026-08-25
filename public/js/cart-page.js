@@ -21,7 +21,7 @@ function renderCartPage() {
         const detail = describeCartLine(item);
         const imageHTML = item.image
           ? `<img class="cart-item-image" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" data-fallback="${escapeHtml(item.icon || '🍽️')}" />`
-          : `<div class="cart-item-icon">${escapeHtml(item.icon || '🍽️')}</div>`;
+          : `<div class="cart-item-icon" style="background: ${foodIconGlowBackground(item.icon, 0.16)};">${foodIconSvg(item.icon, 30)}</div>`;
         return `
       <div class="cart-item" data-line-id="${escapeHtml(item.lineId)}">
         ${imageHTML}
@@ -46,9 +46,11 @@ function renderCartPage() {
       img.addEventListener(
         'error',
         () => {
+          const iconKey = img.getAttribute('data-fallback');
           const fallback = document.createElement('div');
           fallback.className = 'cart-item-icon';
-          fallback.textContent = img.getAttribute('data-fallback') || '🍽️';
+          fallback.style.background = foodIconGlowBackground(iconKey, 0.16);
+          fallback.innerHTML = foodIconSvg(iconKey, 30);
           img.replaceWith(fallback);
         },
         { once: true }

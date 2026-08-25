@@ -4,3 +4,5 @@ node_modules/
 .DS_Store
 server/uploads/menu-images/*
 !server/uploads/menu-images/.gitkeep
+server/uploads/receipts/*
+!server/uploads/receipts/.gitkeep

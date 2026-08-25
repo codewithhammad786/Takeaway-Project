@@ -26,25 +26,23 @@ const CATEGORY_EMOJI = {
 // app) rather than six identical boxes with different emoji.
 const MENU_BOXES = [
   { key: 'popular', label: 'Popular Items', emoji: '🔥', match: (item) => item.popular, accent: ['#ff8a3d', '#ff3d3d'] },
-  { key: 'meal-deals', label: 'Meal Deals', emoji: '🍽️', categories: ['Meal Deals'], accent: ['#ffd65c', '#e6ac00'] },
+  { key: 'todays-offers', label: "Today's Offers", emoji: '🎁', categories: ["Today's Offers"], sortByPrice: true, accent: ['#ff8ac2', '#d6337e'] },
   { key: 'all', label: 'All Items', emoji: '⭐', accent: ['#f2d98a', '#b8860b'] },
-  { key: 'burgers', label: 'Burger Deals', emoji: '🍔', categories: ['Burgers'], accent: ['#e08a3c', '#96481a'] },
-  { key: 'pizza', label: 'Pizza Deals', emoji: '🍕', categories: ['Pizza', 'Build Your Own Pizza', 'Calzone'], accent: ['#ff5f5f', '#c81e1e'] },
-  { key: 'munch-boxes', label: 'Munch Box Deals', emoji: '🍱', categories: ['Grill Munch Boxes', 'Combo Munch Boxes'], accent: ['#3ddc84', '#1a8f57'] },
+  // Calzone is deliberately left out here — it's a Pizza-tile item browsable via All Items, not part
+  // of this Pizza + Meal Deal + Munch Box combined box.
+  { key: 'pizza-meal-deals', label: 'Pizza & Meal Deals', emoji: '🍕', categories: ['Pizza', 'Build Your Own Pizza', 'Grill Munch Boxes', 'Combo Munch Boxes', 'Meal Deals'], accent: ['#ff5f5f', '#c81e1e'] },
+  { key: 'munch-boxes', label: 'Munch Box Deals', emoji: '🍱', categories: ['Grill Munch Boxes', 'Combo Munch Boxes'], sortByPrice: true, accent: ['#3ddc84', '#1a8f57'] },
 ];
 
 // The "All Items" browse grid — one tile per real menu heading. Each tile can cover more than one
 // underlying category (e.g. "Munch Boxes" covers both Grill and Combo munch boxes) so the tile
 // labels stay simple. A tile only shows up if at least one item actually exists in it.
 const ALL_CATEGORY_TILES = [
-  { label: 'Popular Deals', categories: ['Popular Deals'], emoji: '🔥', accent: ['#ff8a3d', '#ff3d3d'] },
   { label: 'Pizza', categories: ['Pizza', 'Build Your Own Pizza', 'Calzone'], emoji: '🍕', accent: ['#ff5f5f', '#c81e1e'] },
   { label: 'Parmesan', categories: ['Parmesan'], emoji: '🧀', accent: ['#ffd65c', '#e6ac00'] },
-  { label: 'Meal Deals', categories: ['Meal Deals'], emoji: '🍽️', accent: ['#f2d98a', '#b8860b'] },
-  { label: 'Kebab', categories: ['Kebabs'], emoji: '🌯', accent: ['#5fb8ff', '#1a6fd6'] },
+  { label: 'Kebab', categories: ['Kebabs'], emoji: '🍢', accent: ['#5fb8ff', '#1a6fd6'] },
   { label: 'Wrap', categories: ['Wraps'], emoji: '🌯', accent: ['#7ec8ff', '#2e86d6'] },
   { label: 'Burgers', categories: ['Burgers'], emoji: '🍔', accent: ['#e08a3c', '#96481a'] },
-  { label: 'Munch Boxes', categories: ['Grill Munch Boxes', 'Combo Munch Boxes'], emoji: '🍱', accent: ['#3ddc84', '#1a8f57'] },
   { label: 'Grilled', categories: ['Grilled'], emoji: '🍗', accent: ['#ff8a3d', '#c8501e'] },
   { label: 'Persian', categories: ['Persian'], emoji: '🥙', accent: ['#c98bff', '#7b3fd6'] },
   { label: 'Sides', categories: ['Sides'], emoji: '🍟', accent: ['#ffd65c', '#c99a1f'] },
@@ -57,6 +55,10 @@ let allMenuItems = [];
 let activeBox = 'popular';
 // Which category tile is open within "All Items" — null means show the tile grid itself.
 let activeCategory = null;
+// A non-empty search query takes over the whole view (searches every item regardless of the
+// active box/category), same idea as the sort dropdown layering on top of whatever's showing.
+let searchQuery = '';
+let sortMode = 'default';
 
 function getMenuBox(key) {
   return MENU_BOXES.find((b) => b.key === key) || MENU_BOXES[0];
@@ -76,10 +78,33 @@ function tileForCategory(category) {
   return ALL_CATEGORY_TILES.find((t) => t.categories.includes(category)) || null;
 }
 
+// The API sorts /menu results alphabetically by category then name (server/routes/menu.js), never
+// by price — so a box that wants a price-ascending order (e.g. "arrange Munch Boxes lower to
+// higher") has to sort for itself here rather than relying on whatever order items arrive in.
+function sortByLowestPrice(items) {
+  return [...items].sort((a, b) => a.variants[0].price - b.variants[0].price);
+}
+
 function itemsForBox(box) {
-  if (box.match) return allMenuItems.filter(box.match);
-  if (box.categories) return allMenuItems.filter((i) => box.categories.includes(i.category));
-  return allMenuItems;
+  let items;
+  if (box.match) items = allMenuItems.filter(box.match);
+  else if (box.categories) items = allMenuItems.filter((i) => box.categories.includes(i.category));
+  else items = allMenuItems;
+
+  return box.sortByPrice ? sortByLowestPrice(items) : items;
+}
+
+// The sort dropdown is a customer-facing override that applies on top of whatever's already being
+// shown (a box's own order, a category's items, or search results) — "Recommended" just means
+// leave that existing order alone.
+function applySort(items) {
+  if (sortMode === 'price-asc') return [...items].sort((a, b) => a.variants[0].price - b.variants[0].price);
+  if (sortMode === 'price-desc') return [...items].sort((a, b) => b.variants[0].price - a.variants[0].price);
+  return items;
+}
+
+function updateSortVisibility(show) {
+  document.getElementById('menu-sort-wrap').hidden = !show;
 }
 
 function renderQuickBoxes() {
@@ -89,7 +114,7 @@ function renderQuickBoxes() {
     const [accentA, accentB] = box.accent;
     return `
       <button type="button" class="menu-quickbox ${activeClass}" data-box="${box.key}" style="--box-a: ${accentA}; --box-b: ${accentB};">
-        <span class="menu-quickbox-emoji">${box.emoji}</span>
+        <span class="menu-quickbox-emoji">${foodIconSvg(box.emoji, 28)}</span>
         <span class="menu-quickbox-label">${box.label}</span>
       </button>
     `;
@@ -121,7 +146,7 @@ function renderCategoryTileGrid(container) {
         .map(
           (tile) => `
         <button type="button" class="menu-category-tile" data-category-tile="${escapeHtml(tile.label)}" style="--tile-a: ${tile.accent[0]}; --tile-b: ${tile.accent[1]};">
-          <span class="menu-category-tile-emoji">${tile.emoji}</span>
+          <span class="menu-category-tile-emoji">${foodIconSvg(tile.emoji, 24)}</span>
           <span class="menu-category-tile-label">${escapeHtml(tile.label)}</span>
         </button>
       `
@@ -140,13 +165,16 @@ function renderCategoryTileGrid(container) {
 
 function renderCategoryItemsView(container, tileLabel) {
   const tile = ALL_CATEGORY_TILES.find((t) => t.label === tileLabel);
-  const items = tile ? allMenuItems.filter((i) => tile.categories.includes(i.category)) : [];
+  // Falls back to matching the raw category name directly — used for categories that have their own
+  // quick-pick box (so intentionally have no tile in the grid, e.g. "Popular Deals") but can still be
+  // deep-linked to from elsewhere on the site, like a home-page deal card.
+  const items = applySort(tile ? allMenuItems.filter((i) => tile.categories.includes(i.category)) : allMenuItems.filter((i) => i.category === tileLabel));
 
   container.innerHTML = `
     <button type="button" class="menu-back-link" data-back-to-categories>← All Categories</button>
     <section class="menu-category-section">
       <h2 class="menu-category-heading">
-        <span class="menu-category-heading-emoji">${tile ? tile.emoji : '🍽️'}</span>${escapeHtml(tileLabel)}
+        <span class="menu-category-heading-emoji">${foodIconSvg(tile ? tile.emoji : '🍽️', 22)}</span>${escapeHtml(tileLabel)}
       </h2>
       <div class="menu-grid">${items.map(renderMenuCard).join('')}</div>
     </section>
@@ -160,11 +188,39 @@ function renderCategoryItemsView(container, tileLabel) {
   bindMenuCards(container, items);
 }
 
+// A search query overrides whatever box/category is active and searches every item by name —
+// clearing the search box goes back to exactly where the customer was browsing.
+function renderSearchResults(container, query) {
+  const q = query.trim().toLowerCase();
+  const items = applySort(allMenuItems.filter((i) => i.name.toLowerCase().includes(q)));
+  updateSortVisibility(true);
+
+  if (!items.length) {
+    container.innerHTML = `<p class="empty-state">No items match "${escapeHtml(query)}" — try a different search.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <section class="menu-category-section">
+      <h2 class="menu-category-heading">Search results <span class="menu-search-count">(${items.length})</span></h2>
+      <div class="menu-grid">${items.map(renderMenuCard).join('')}</div>
+    </section>
+  `;
+  bindMenuCards(container, items);
+}
+
 function renderMenuGrid() {
   const container = document.getElementById('menu-items');
+
+  if (searchQuery.trim()) {
+    renderSearchResults(container, searchQuery);
+    return;
+  }
+
   const box = getMenuBox(activeBox);
 
   if (box.key === 'all') {
+    updateSortVisibility(Boolean(activeCategory));
     if (activeCategory) {
       renderCategoryItemsView(container, activeCategory);
     } else {
@@ -173,7 +229,8 @@ function renderMenuGrid() {
     return;
   }
 
-  const items = itemsForBox(box);
+  updateSortVisibility(true);
+  const items = applySort(itemsForBox(box));
   if (!items.length) {
     container.innerHTML = `<p class="empty-state">No items in ${escapeHtml(box.label)} right now — try "All Items".</p>`;
     return;
@@ -182,7 +239,7 @@ function renderMenuGrid() {
   container.innerHTML = `
     <section class="menu-category-section">
       <h2 class="menu-category-heading">
-        <span class="menu-category-heading-emoji">${box.emoji}</span>${escapeHtml(box.label)}
+        <span class="menu-category-heading-emoji">${foodIconSvg(box.emoji, 22)}</span>${escapeHtml(box.label)}
       </h2>
       <div class="menu-grid">${items.map(renderMenuCard).join('')}</div>
     </section>
@@ -233,13 +290,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       activeBox = boxForCategory(requestedCategory);
       if (activeBox === 'all') {
         const tile = tileForCategory(requestedCategory);
-        if (tile) activeCategory = tile.label;
+        activeCategory = tile ? tile.label : requestedCategory;
       }
     }
 
     renderQuickBoxes();
     renderMenuGrid();
     renderMenuRatingBadge();
+
+    document.getElementById('menu-search-input').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderMenuGrid();
+    });
+
+    document.getElementById('menu-sort-select').addEventListener('change', (e) => {
+      sortMode = e.target.value;
+      renderMenuGrid();
+    });
   } catch (err) {
     container.innerHTML = '';
     showMenuError(`Couldn't load the menu: ${err.message}`);

@@ -177,6 +177,13 @@ function pizzaCustomization(defaultToppings) {
   };
 }
 
+const PARMESAN_FLAVOUR_CHOICE = {
+  label: 'Choose your 2 flavours',
+  choices: freeChoices(['Inferno', 'Sweet Chilli', 'Pepperoni Melt', 'BBQ Donner Melt', 'Loaded Shroom', 'Algerian']),
+  max: 2,
+  required: true,
+};
+
 const DONNER_CHOICE = {
   label: 'Choose your donner',
   choices: freeChoices(['Chicken Donner', 'Lamb Donner']),
@@ -215,6 +222,7 @@ function pexels(id) {
 
 const CATEGORY_IMAGE = {
   'Popular Deals': pexels(1435907),
+  "Today's Offers": pexels(1435907),
   Grilled: pexels(106343),
   Persian: pexels(53148),
   Parmesan: pexels(17429243),
@@ -522,6 +530,21 @@ const rawItems = [
   { name: 'Kinder Bueno Milkshake', description: 'Thick and creamy Kinder Bueno milkshake.', category: 'Milkshakes', icon: '🥤', variants: singlePrice(4.99) },
   { name: 'Ferrero Rocher Milkshake', description: 'Thick and creamy Ferrero Rocher milkshake.', category: 'Milkshakes', icon: '🥤', variants: singlePrice(4.99) },
   { name: 'Biscoff Milkshake', description: 'Thick and creamy Biscoff milkshake.', category: 'Milkshakes', icon: '🥤', variants: singlePrice(4.99) },
+
+  // ---------- Today's Offers (Buy 1 Get 1 Free — the price covers both) ----------
+  // Each deal carries whichever customization its regular menu equivalent has (salad/sauce for
+  // burgers and donners, topping swaps for the pizza) — nothing invented that the real item
+  // doesn't already offer. Garlic Bread has no options on the regular menu either, so none here.
+  { name: '2 x Zinger Burger', description: 'A crispy chicken zinger patty in a soft bun with fresh salad. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(8.99), optionGroups: BURGER_OPTION_GROUPS },
+  { name: '2 x Cheeseburger', description: 'A juicy beef patty topped with a melted cheese slice, fresh lettuce and tomato. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(8.99), optionGroups: [SALAD_OPTIONS, SAUCE_OPTIONS, EXTRA_PATTY_OPTION] },
+  { name: '2 x Tandoori Loaded Fries', description: 'Golden fries loaded with tandoori-spiced chicken and a drizzle of sauce. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(8.99), optionGroups: [SAUCE_OPTIONS] },
+  { name: '2 x Crispy Chicken Loaded Fries', description: 'Golden fries loaded with crispy chicken pieces and a drizzle of sauce. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(8.99), optionGroups: [SAUCE_OPTIONS] },
+  { name: '2 x BBQ Loaded Fries', description: 'Golden fries loaded with BBQ chicken and a drizzle of barbecue sauce. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(8.99), optionGroups: [SAUCE_OPTIONS] },
+  { name: '2 x Lamb Donner', description: 'Sliced lamb donner meat served with fries. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(8.99), optionGroups: [SALAD_OPTIONS, SAUCE_OPTIONS] },
+  { name: '2 x Chicken Donner', description: 'Sliced chicken donner meat served with fries. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(8.99), optionGroups: [SALAD_OPTIONS, SAUCE_OPTIONS] },
+  { name: '2 x Margherita', description: 'Tomato sauce, mozzarella cheese and herbs. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(9.99), customization: pizzaCustomization([]) },
+  { name: '2 x Garlic Bread', description: 'Toasted bread with garlic butter. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(9.99) },
+  { name: '2 x Parmesan', description: 'Choose 2 flavours from our Parmesan range, each topped with a double cheese melt. Buy one, get one free — this price covers both.', category: "Today's Offers", icon: '🎁', variants: singlePrice(17.99), optionGroups: [PARMESAN_FLAVOUR_CHOICE] },
 ];
 
 module.exports = rawItems.map((item) => ({
