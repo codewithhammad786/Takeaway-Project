@@ -66,6 +66,7 @@ function renderOrderHistory(orders) {
           if (order.orderType === 'Delivery') {
             metaParts.push(`${escapeHtml(order.address)}, ${escapeHtml(order.city)}`);
           }
+          if (order.branch) metaParts.push(`${escapeHtml(order.branch)} branch`);
 
           return `
       <article class="order-history-card" data-id="${escapeHtml(order._id)}">

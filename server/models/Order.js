@@ -26,7 +26,13 @@ const orderItemSchema = new mongoose.Schema(
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, required: true, unique: true },
+    // Short per-shift receipt number (1, 2, 3...) shown on the printed receipt instead of the long
+    // orderNumber — resets to 1 each business day (15:00 UK to 15:00 UK next day). businessDay is the
+    // grouping key (see server/utils/businessHours.js) used to count today's orders so far.
+    businessDay: { type: String },
+    dailyReceiptNo: { type: Number },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    branch: { type: String, enum: ['Birmingham', 'Stoke-on-Trent'], required: true },
     customerName: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     email: { type: String, trim: true },

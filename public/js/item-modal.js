@@ -112,7 +112,7 @@ function openItemModal(item, onAdded) {
         `
       : '';
 
-    const optionGroupsHTML = !item.customization ? renderOptionGroupsHTML(item, item._id) : '';
+    const optionGroupsHTML = !item.customization ? renderOptionGroupsHTML(item, item._id, variant.label) : '';
 
     content.innerHTML = `
       <div class="pizza-modal-header">

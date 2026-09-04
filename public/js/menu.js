@@ -276,14 +276,12 @@ async function renderMenuRatingBadge() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!hasGuestDetails()) {
-    redirectToGuestGate();
-    return;
-  }
-
+  // Branch gate is enforced site-wide by nav.js (loaded before this script runs) — nothing extra
+  // needed here.
   const container = document.getElementById('menu-items');
   try {
-    allMenuItems = await apiRequest('/menu');
+    const branch = (getGuestDetails() || {}).branch;
+    allMenuItems = await apiRequest(`/menu${branch ? `?branch=${encodeURIComponent(branch)}` : ''}`);
 
     const requestedCategory = new URLSearchParams(window.location.search).get('category');
     if (requestedCategory) {

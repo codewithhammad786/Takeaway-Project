@@ -126,170 +126,149 @@ function receiptHtml(order) {
 
   const isPaid = order.paymentStatus === 'Paid';
 
+  // Sized for an 80mm thermal receipt printer (roughly 72mm printable width) — plain, single-column,
+  // system fonts only (no web fonts to wait on), no color/shadow/radius since thermal printers are
+  // monochrome and those effects only cause dithering/misalignment on that hardware.
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8" />
 <title>Receipt ${escapeHtml(order.orderNumber)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  @page { size: 80mm auto; margin: 0; }
   * { box-sizing: border-box; }
-  body {
-    font-family: 'Inter', 'Segoe UI', sans-serif;
-    color: #262220;
-    background: #f2f2f2;
+  html, body {
+    width: 72mm;
     margin: 0;
-    padding: 24px;
+    padding: 0;
   }
-  .receipt {
-    max-width: 640px;
-    margin: 0 auto;
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #000;
     background: #fff;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 3mm 3mm 4mm;
+    font-size: 12px;
+    line-height: 1.4;
   }
-  .r-topbar { height: 6px; background: linear-gradient(90deg, #e6ac00, #ffc72c, #e6ac00); }
-  .r-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 26px 30px 20px;
-    border-bottom: 2px solid #f0e4c0;
-  }
-  .r-brand { display: flex; align-items: center; gap: 12px; }
-  .r-brand-name { font-family: 'Poppins', sans-serif; font-size: 1.3rem; font-weight: 800; margin: 0; }
-  .r-brand-tag { font-size: 0.78rem; color: #6b6358; margin: 2px 0 0; }
-  .r-meta-block { text-align: right; }
-  .r-receipt-label { font-family: 'Poppins', sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b6358; }
-  .r-order-number { font-size: 1.05rem; font-weight: 800; margin: 2px 0; }
-  .r-order-date { font-size: 0.8rem; color: #6b6358; }
-  .r-status-pill { display: inline-block; margin-top: 8px; padding: 4px 14px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
-  .r-status-pill.paid { background: #e6f4ea; color: #1e7b34; }
-  .r-status-pill.unpaid { background: #fdecea; color: #b3261e; }
+  .r-frame { border-top: 3px double #000; border-bottom: 3px double #000; padding: 5px 0 8px; }
+  .r-center { text-align: center; }
+  .r-brand-name { font-size: 19px; font-weight: 800; letter-spacing: 0.03em; margin: 0; text-transform: uppercase; }
+  .r-brand-tag { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #333; margin: 3px 0 0; }
+  .r-divider { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+  .r-receipt-label { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin: 2px 0 0; }
+  .r-order-number { font-size: 12px; font-weight: 700; margin: 3px 0 0; letter-spacing: 0.02em; }
+  .r-order-date { font-size: 11px; margin-top: 1px; }
+  .r-status { display: table; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin: 7px auto 0; padding: 3px 12px; border: 1px solid #000; }
+  .r-receipt-no-box { display: table; border: 2px solid #000; padding: 5px 18px; margin: 8px auto 2px; }
+  .r-receipt-no-box .r-receipt-no-label { font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; }
+  .r-receipt-no-box .r-receipt-no-value { font-size: 26px; font-weight: 800; line-height: 1.1; margin: 1px 0 0; }
+  .r-footer-brand { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin: 2px 0 0; }
 
-  .r-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 22px 30px; border-bottom: 1px solid #f0e4c0; }
-  .r-info-col h4 { font-family: 'Poppins', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #e6ac00; margin: 0 0 8px; }
-  .r-info-col p { margin: 0 0 4px; font-size: 0.92rem; line-height: 1.5; }
-  .r-info-col .r-label { color: #6b6358; font-size: 0.78rem; }
+  .r-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin: 0 0 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
+  .r-info-col { margin: 8px 0; }
+  .r-info-col p { margin: 0 0 3px; font-size: 12px; }
+  .r-info-col .r-label { font-weight: 600; display: inline-block; min-width: 46px; }
 
-  table.r-items { width: 100%; border-collapse: collapse; margin: 0; }
+  table.r-items { width: 100%; border-collapse: collapse; margin: 4px 0; }
   table.r-items thead th {
     text-align: left;
-    font-family: 'Poppins', sans-serif;
-    font-size: 0.68rem;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #6b6358;
-    padding: 14px 30px 10px;
-    border-bottom: 2px solid #f0e4c0;
+    padding: 0 0 4px;
+    border-bottom: 1px solid #000;
   }
   table.r-items thead th.r-qty-cell,
   table.r-items thead th.r-price-cell { text-align: right; }
-  table.r-items td { padding: 12px 30px; vertical-align: top; border-bottom: 1px solid #f5efd9; font-size: 0.92rem; }
-  .r-item-cell { width: 55%; }
+  table.r-items td { padding: 5px 0; vertical-align: top; font-size: 12px; border-bottom: 1px dotted #999; }
+  table.r-items tr:last-child td { border-bottom: none; }
+  .r-item-cell { width: 52%; }
   .r-item-name { font-weight: 700; }
-  .r-variant { font-weight: 500; color: #6b6358; font-size: 0.85rem; }
-  .r-mods { margin: 5px 0 0; padding-left: 18px; color: #6b6358; font-size: 0.82rem; }
-  .r-mods li { margin-bottom: 2px; }
-  .r-mod-group { margin: 4px 0 0; color: #6b6358; font-size: 0.82rem; }
-  .r-mod-group-label { font-weight: 700; color: #262220; }
-  .r-qty-cell { text-align: right; color: #6b6358; }
+  .r-variant { font-weight: 500; font-size: 11px; }
+  .r-mods { margin: 3px 0 0; padding-left: 12px; font-size: 11px; }
+  .r-mods li { margin-bottom: 1px; }
+  .r-mod-group { margin: 3px 0 0; font-size: 11px; }
+  .r-mod-group-label { font-weight: 700; }
+  .r-qty-cell { text-align: right; }
   .r-price-cell { text-align: right; white-space: nowrap; }
   .r-line-total { font-weight: 700; }
 
-  .r-summary { padding: 20px 30px 26px; display: flex; justify-content: flex-end; }
-  .r-summary-box { width: 260px; }
-  .r-summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; color: #6b6358; }
-  .r-summary-row.discount span:last-child { color: #1e7b34; }
-  .r-summary-row.total { border-top: 2px solid #262220; margin-top: 8px; padding-top: 10px; font-weight: 800; font-size: 1.15rem; color: #262220; }
+  .r-summary-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+  .r-summary-row.total { border-top: 2px solid #000; margin-top: 5px; padding-top: 7px; font-weight: 800; font-size: 15px; letter-spacing: 0.02em; }
 
-  .r-notes-box { margin: 0 30px 24px; background: #fff8e7; border: 1px solid #f0e4c0; border-radius: 10px; padding: 14px 16px; }
-  .r-notes-box h4 { font-family: 'Poppins', sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #e6ac00; margin: 0 0 6px; }
-  .r-notes-box p { margin: 0; font-size: 0.9rem; font-style: italic; }
+  .r-notes-box { margin: 8px 0; padding: 6px 8px; border: 1px dashed #000; }
+  .r-notes-box h4 { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 3px; }
+  .r-notes-box p { margin: 0; font-size: 12px; font-style: italic; }
 
-  .r-footer { text-align: center; padding: 20px 30px 28px; border-top: 2px solid #f0e4c0; }
-  .r-footer p { margin: 2px 0; font-size: 0.82rem; color: #6b6358; }
-  .r-thanks { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; color: #262220; margin-bottom: 6px !important; }
-
-  @media print {
-    body { background: #fff; padding: 0; }
-    .receipt { box-shadow: none; border-radius: 0; max-width: 100%; }
-  }
+  .r-footer { text-align: center; margin-top: 4px; }
+  .r-footer p { margin: 2px 0; font-size: 11px; }
+  .r-thanks { font-weight: 700; font-size: 13px; margin-bottom: 6px !important; }
 </style>
 </head>
 <body>
-  <div class="receipt">
-    <div class="r-topbar"></div>
-    <div class="r-header">
-      <div class="r-brand">
-        <div>
-          <p class="r-brand-name">🍔 Bun 'n Dough</p>
-          <p class="r-brand-tag">Pizza · Burger · Grill</p>
-        </div>
-      </div>
-      <div class="r-meta-block">
-        <div class="r-receipt-label">Order Receipt</div>
-        <div class="r-order-number">#${escapeHtml(order.orderNumber)}</div>
-        <div class="r-order-date">${new Date(order.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</div>
-        <span class="r-status-pill ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? '✓ Paid' : 'Not Paid'}</span>
-      </div>
+  <div class="r-center">
+    <p class="r-brand-name">Bun 'n Dough</p>
+    <p class="r-brand-tag">Pizza . Burger . Grill</p>
+  </div>
+
+  <div class="r-frame">
+    <div class="r-center">
+      <div class="r-receipt-label">Order Receipt</div>
+      <div class="r-order-number">#${escapeHtml(order.orderNumber)}</div>
+      <div class="r-order-date">${new Date(order.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+      ${order.branch ? `<div class="r-order-date">${escapeHtml(order.branch)} branch</div>` : ''}
     </div>
+  </div>
 
-    <div class="r-info-grid">
-      <div class="r-info-col">
-        <h4>Customer</h4>
-        <p><span class="r-label">Name:</span> <strong>${escapeHtml(order.customerName)}</strong></p>
-        <p><span class="r-label">Phone:</span> ${escapeHtml(order.phone)}</p>
-        ${order.email ? `<p><span class="r-label">Email:</span> ${escapeHtml(order.email)}</p>` : ''}
-      </div>
-      <div class="r-info-col">
-        <h4>${escapeHtml(order.orderType)}</h4>
-        ${
-          order.orderType === 'Delivery'
-            ? `
-          <p><span class="r-label">Address:</span> ${escapeHtml(order.address)}</p>
-          <p><span class="r-label">City:</span> ${escapeHtml(order.city)}</p>
-          ${order.postcode ? `<p><span class="r-label">Postcode:</span> ${escapeHtml(order.postcode)}</p>` : ''}
-        `
-            : `<p>Collection in-store</p>`
-        }
-        <p><span class="r-label">Kitchen status:</span> ${escapeHtml(order.status)}</p>
-      </div>
-    </div>
+  <hr class="r-divider" />
 
-    <table class="r-items">
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th class="r-qty-cell">Qty</th>
-          <th class="r-price-cell">Price</th>
-          <th class="r-price-cell">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemRows}
-      </tbody>
-    </table>
+  <div class="r-info-col">
+    <div class="r-section-title">Customer</div>
+    <p><span class="r-label">Name:</span> ${escapeHtml(order.customerName)}</p>
+    <p><span class="r-label">Phone:</span> ${escapeHtml(order.phone)}</p>
+    ${order.email ? `<p><span class="r-label">Email:</span> ${escapeHtml(order.email)}</p>` : ''}
+  </div>
+  <div class="r-info-col">
+    <div class="r-section-title">${escapeHtml(order.orderType)}</div>
+    ${
+      order.orderType === 'Delivery'
+        ? `
+      <p><span class="r-label">Address:</span> ${escapeHtml(order.address)}</p>
+      <p><span class="r-label">City:</span> ${escapeHtml(order.city)}</p>
+      ${order.postcode ? `<p><span class="r-label">Postcode:</span> ${escapeHtml(order.postcode)}</p>` : ''}
+    `
+        : `<p>Collection in-store</p>`
+    }
+    <p><span class="r-label">Status:</span> ${escapeHtml(order.status)}</p>
+  </div>
 
-    <div class="r-summary">
-      <div class="r-summary-box">
-        <div class="r-summary-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal)}</span></div>
-        ${order.discount > 0 ? `<div class="r-summary-row discount"><span>Online discount</span><span>-${formatCurrency(order.discount)}</span></div>` : ''}
-        ${order.deliveryFee > 0 ? `<div class="r-summary-row"><span>Delivery fee</span><span>${formatCurrency(order.deliveryFee)}</span></div>` : ''}
-        <div class="r-summary-row total"><span>Total</span><span>${formatCurrency(order.total)}</span></div>
-      </div>
-    </div>
+  <table class="r-items">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th class="r-qty-cell">Qty</th>
+        <th class="r-price-cell">Price</th>
+        <th class="r-price-cell">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemRows}
+    </tbody>
+  </table>
 
-    ${order.notes ? `<div class="r-notes-box"><h4>Special Instructions</h4><p>${escapeHtml(order.notes)}</p></div>` : ''}
+  <hr class="r-divider" />
+  <div class="r-summary-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal)}</span></div>
+  ${order.discount > 0 ? `<div class="r-summary-row"><span>Online discount</span><span>-${formatCurrency(order.discount)}</span></div>` : ''}
+  ${order.deliveryFee > 0 ? `<div class="r-summary-row"><span>Delivery fee</span><span>${formatCurrency(order.deliveryFee)}</span></div>` : ''}
+  <div class="r-summary-row total"><span>Total</span><span>${formatCurrency(order.total)}</span></div>
 
-    <div class="r-footer">
-      <p class="r-thanks">Thank you for your order!</p>
-      <p>Bun 'n Dough — 40 Horse Fair, Birmingham B1 1DA</p>
-      <p>0121 448 4142 · info@bunndough.com</p>
-    </div>
+  ${order.notes ? `<div class="r-notes-box"><div class="r-section-title">Special Instructions</div><p>${escapeHtml(order.notes)}</p></div>` : ''}
+
+  <hr class="r-divider" />
+  <div class="r-footer">
+    ${order.dailyReceiptNo ? `<p>Receipt No: ${order.dailyReceiptNo}</p>` : ''}
+    <p class="r-footer-brand">Bun 'n Dough</p>
   </div>
 
   <script>window.onload = () => window.print();</script>
@@ -368,8 +347,10 @@ function autoPrintNewOrders() {
 
 function renderOrders() {
   const filter = document.getElementById('payment-filter').value;
+  const branchFilter = document.getElementById('branch-filter').value;
   const container = document.getElementById('admin-orders');
-  const orders = filter === 'all' ? allOrders : allOrders.filter((o) => o.paymentStatus === filter);
+  let orders = filter === 'all' ? allOrders : allOrders.filter((o) => o.paymentStatus === filter);
+  if (branchFilter !== 'all') orders = orders.filter((o) => o.branch === branchFilter);
 
   if (!orders.length) {
     container.innerHTML = '<p class="empty-state">No orders to show.</p>';
@@ -384,6 +365,7 @@ function renderOrders() {
         <div>
           <strong>#${escapeHtml(order.orderNumber)}</strong>
           <span class="admin-pay-badge ${order.paymentStatus === 'Paid' ? 'paid' : 'unpaid'}">${escapeHtml(order.paymentStatus)}</span>
+          ${order.branch ? `<span class="admin-branch-badge">${escapeHtml(order.branch)}</span>` : ''}
         </div>
         <span>${new Date(order.createdAt).toLocaleString('en-GB')}</span>
       </div>
@@ -882,6 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('payment-filter').addEventListener('change', renderOrders);
+  document.getElementById('branch-filter').addEventListener('change', renderOrders);
 
   const autoPrintToggle = document.getElementById('autoprint-toggle');
   autoPrintToggle.checked = isAutoPrintEnabled();

@@ -7,10 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const saved = getGuestDetails();
-  if (saved) {
-    if (saved.customerName) document.getElementById('guest-name').value = saved.customerName;
-    if (saved.phone) document.getElementById('guest-phone').value = saved.phone;
-    if (saved.email) document.getElementById('guest-email').value = saved.email;
+  if (saved && saved.branch) {
+    const branchInput = document.querySelector(`input[name="branch"][value="${saved.branch}"]`);
+    if (branchInput) branchInput.checked = true;
   }
 
   const form = document.getElementById('guest-form');
@@ -25,11 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const customerName = document.getElementById('guest-name').value.trim();
-    const phone = document.getElementById('guest-phone').value.trim();
-    const email = document.getElementById('guest-email').value.trim();
+    const branch = (document.querySelector('input[name="branch"]:checked') || {}).value;
 
-    saveGuestDetails({ customerName, phone, email });
+    // Keeps any name/phone/email already saved from a past order (so checkout can still prefill
+    // them) — this page only ever collects the branch.
+    saveGuestDetails({ ...(saved || {}), branch });
     window.location.href = redirect;
   });
 });

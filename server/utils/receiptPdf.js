@@ -39,6 +39,9 @@ function generateReceiptPdf(order) {
     doc.font('Helvetica').fontSize(9).fillColor(MUTED).text(
       new Date(order.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
     );
+    if (order.branch) {
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(GOLD).text(`${order.branch} branch`);
+    }
     // Standard PDF fonts don't include a ✓ glyph (outside WinAnsiEncoding), so this stays plain text.
     doc.font('Helvetica-Bold').fontSize(10).fillColor(isPaid ? GREEN : RED).text(isPaid ? 'PAID' : 'NOT PAID');
     doc.moveDown(0.8);

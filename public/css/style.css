@@ -548,6 +548,30 @@ body.checkout-page .section {
   background-image: linear-gradient(180deg, rgba(6, 6, 6, 0.62) 0%, rgba(6, 6, 6, 0.78) 100%), url('https://images.pexels.com/photos/7816894/pexels-photo-7816894.jpeg?auto=compress&cs=tinysrgb&w=1600');
 }
 
+/* The branch picker is the very first thing every visitor sees, so it gets a full, immersive
+   splash treatment — a big food photo behind a centred card, rather than the page just starting
+   at the top of a plain section. */
+body.guest-page .section {
+  position: relative;
+  min-height: calc(100vh - 130px);
+  display: flex;
+  align-items: center;
+  background-image: linear-gradient(180deg, rgba(6, 6, 6, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%), url('https://images.pexels.com/photos/29306498/pexels-photo-29306498.jpeg?auto=compress&cs=tinysrgb&w=1600');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+body.guest-page .section > .container {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  body.guest-page .section {
+    background-attachment: scroll;
+  }
+}
+
 body.orders-page .section {
   background-image: linear-gradient(180deg, rgba(6, 6, 6, 0.62) 0%, rgba(6, 6, 6, 0.78) 100%), url('https://images.pexels.com/photos/708587/pexels-photo-708587.jpeg?auto=compress&cs=tinysrgb&w=1600');
 }
@@ -2882,6 +2906,18 @@ textarea:focus {
 .admin-pay-badge.unpaid {
   background: rgba(255, 255, 255, 0.08);
   color: var(--color-muted);
+}
+
+.admin-branch-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  vertical-align: middle;
+  background: rgba(255, 199, 44, 0.14);
+  color: var(--color-primary);
 }
 
 .admin-order-body p {

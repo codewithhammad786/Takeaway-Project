@@ -1,7 +1,9 @@
-// There's no password login — instead, a guest gives their name, phone, and email once (saved to
-// this browser's localStorage) before they can browse the menu or order. Every page that needs to
-// know "do we have this guest's details yet" uses these shared helpers, so there's exactly one
-// place the storage key and shape are defined.
+// There's no password login. The only thing that gates browsing the menu/ordering is picking a
+// branch once (saved to this browser's localStorage) — name/phone/email are collected just once,
+// directly on the checkout form itself, not repeated here. Every page that needs to know "has this
+// visitor picked a branch yet" uses these shared helpers, so there's exactly one place the storage
+// key and shape are defined. customerName/phone/email are still stored alongside branch purely so
+// checkout.html can prefill a returning customer's details — they're never required by the gate.
 const GUEST_DETAILS_KEY = 'bunndough_guest_details';
 
 function getGuestDetails() {
@@ -14,11 +16,11 @@ function getGuestDetails() {
 
 function hasGuestDetails() {
   const d = getGuestDetails();
-  return !!(d && d.customerName && d.phone && d.email);
+  return !!(d && d.branch);
 }
 
-function saveGuestDetails({ customerName, phone, email }) {
-  localStorage.setItem(GUEST_DETAILS_KEY, JSON.stringify({ customerName, phone, email }));
+function saveGuestDetails({ customerName, phone, email, branch }) {
+  localStorage.setItem(GUEST_DETAILS_KEY, JSON.stringify({ customerName, phone, email, branch }));
 }
 
 function redirectToGuestGate(redirectTarget) {

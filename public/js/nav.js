@@ -83,7 +83,23 @@ function setupScrollReveal() {
   targets.forEach((el) => observer.observe(el));
 }
 
+// Site-wide gate: nothing (menu, cart, checkout, contact, order tracking — every customer page)
+// is reachable until a branch is picked, since nav.js is loaded on all of them. The branch-picker
+// page itself and the manager admin dashboard are the only two pages exempt.
+function enforceBranchGate() {
+  if (document.body.classList.contains('guest-page') || document.body.classList.contains('admin-page')) {
+    return false;
+  }
+  if (typeof hasGuestDetails === 'function' && !hasGuestDetails()) {
+    redirectToGuestGate();
+    return true;
+  }
+  return false;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  if (enforceBranchGate()) return;
+
   const toggle = document.getElementById('nav-toggle');
   const nav = document.getElementById('nav-menu');
 

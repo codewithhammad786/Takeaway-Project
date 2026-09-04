@@ -5,7 +5,7 @@ const stripe = require('../config/stripe');
 const { buildOrderItems, computeTotals, OrderValidationError, MIN_DELIVERY_ORDER } = require('../utils/pricing');
 const { normalizePhone } = require('../utils/twilioVerify');
 const { sendOrderPaidWhatsApp } = require('../utils/whatsapp');
-const { isShopOpen, isDeliveryAvailable } = require('../utils/businessHours');
+const { isShopOpen, isDeliveryAvailable, getBusinessDayKey } = require('../utils/businessHours');
 
 const router = express.Router();
 
@@ -46,10 +46,13 @@ async function upsertGuestCustomer({ name, phone, email }) {
 // required — just a name, phone, and email, which also becomes/updates their guest customer record.
 router.post('/', async (req, res, next) => {
   try {
-    const { customerName, phone, email, orderType, address, city, postcode, notes, items } = req.body;
+    const { customerName, phone, email, branch, orderType, address, city, postcode, notes, items } = req.body;
 
     if (!isShopOpen()) {
       return res.status(400).json({ message: "We're closed right now — online ordering runs 3pm–8am. Please come back after 3pm." });
+    }
+    if (!['Birmingham', 'Stoke-on-Trent'].includes(branch)) {
+      return res.status(400).json({ message: 'Please choose a branch (Birmingham or Stoke-on-Trent)' });
     }
     if (!customerName || !customerName.trim()) {
       return res.status(400).json({ message: 'Customer name is required' });
@@ -72,7 +75,7 @@ router.post('/', async (req, res, next) => {
 
     let orderItems;
     try {
-      orderItems = await buildOrderItems(items);
+      orderItems = await buildOrderItems(items, branch);
     } catch (err) {
       if (err instanceof OrderValidationError) {
         return res.status(400).json({ message: err.message });
@@ -90,9 +93,15 @@ router.post('/', async (req, res, next) => {
 
     const customer = await upsertGuestCustomer({ name: customerName.trim(), phone, email });
 
+    const businessDay = getBusinessDayKey();
+    const dailyReceiptNo = (await Order.countDocuments({ businessDay })) + 1;
+
     const order = await Order.create({
       orderNumber: generateOrderNumber(),
+      businessDay,
+      dailyReceiptNo,
       user: customer._id,
+      branch,
       customerName: customerName.trim(),
       phone: phone.trim(),
       email: email.trim(),

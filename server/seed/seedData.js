@@ -13,11 +13,14 @@ const FLAVOUR_OPTIONS = {
   required: true,
 };
 
+// Only shown/required when the customer has picked the "Meal" variant — a side makes no sense on
+// its own with the plain "Single" price, which doesn't include one.
 const GRILL_SIDE_CHOICE = {
   label: 'Choose your side',
   choices: freeChoices(['Fries', 'Naan', 'Steamed Rice', 'Spicy Rice']),
   max: 1,
   required: true,
+  mealOnly: true,
 };
 
 const STANDARD_DRINKS = [
@@ -39,7 +42,10 @@ const STANDARD_DRINKS = [
   pricedChoice('Oasis Summer Fruit', 1),
 ];
 
-const DRINK_CHOICE_1 = { label: 'Choose your drink', choices: STANDARD_DRINKS, max: 1, required: true };
+// mealOnly: hidden when the customer picks a plain "Single" variant (e.g. the Grilled section) —
+// harmless for items like Solo Pizza Feast that only ever have one variant, since that variant is
+// never labelled "Single".
+const DRINK_CHOICE_1 = { label: 'Choose your drink', choices: STANDARD_DRINKS, max: 1, required: true, mealOnly: true };
 const DRINK_CHOICE_2 = { label: 'Choose your 2 drinks', choices: STANDARD_DRINKS, max: 2, required: true };
 
 const BOTTLE_DRINK_CHOICE = {
@@ -55,6 +61,11 @@ const SALAD_OPTIONS = {
   max: 8,
   required: false,
 };
+
+// The Grilled section's own copy of SALAD_OPTIONS (not the shared one burgers use) — singleOnly
+// means it's the opposite of GRILL_SIDE_CHOICE/DRINK_CHOICE_1: only offered on the plain "Single"
+// price, since the "Meal" price comes with a side and drink instead of a salad.
+const GRILL_SALAD_OPTIONS = { ...SALAD_OPTIONS, singleOnly: true };
 
 const SAUCE_OPTIONS = {
   label: 'Choose your sauces',
@@ -326,15 +337,15 @@ const rawItems = [
   },
 
   // ---------- Grilled (single/meal + flavour, side, and drink choice) ----------
-  { name: 'Quarter Peri Peri Chicken', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(5.99, 8.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1], popular: true },
-  { name: 'Half Peri Peri Chicken', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(7.99, 10.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
-  { name: 'Whole Peri Peri Chicken', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(12.99, 15.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1], popular: true },
-  { name: 'Grilled Chicken Wings x6', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(4.99, 7.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
-  { name: 'Grilled Chicken Strips x6', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(7.99, 10.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
-  { name: 'Lamb Chops x3', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍖', variants: singleMeal(9.99, 12.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
-  { name: 'Lamb Chops x5', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍖', variants: singleMeal(14.99, 17.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
-  { name: "Chick 'n' Rice", description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(4.99, 7.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
-  { name: 'Grilled Chicken Salad', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🥗', variants: singleMeal(4.99, 7.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
+  { name: 'Quarter Peri Peri Chicken', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(5.99, 8.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1], popular: true },
+  { name: 'Half Peri Peri Chicken', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(7.99, 10.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
+  { name: 'Whole Peri Peri Chicken', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(12.99, 15.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1], popular: true },
+  { name: 'Grilled Chicken Wings x6', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(4.99, 7.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
+  { name: 'Grilled Chicken Strips x6', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(7.99, 10.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
+  { name: 'Lamb Chops x3', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍖', variants: singleMeal(9.99, 12.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
+  { name: 'Lamb Chops x5', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍖', variants: singleMeal(14.99, 17.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
+  { name: "Chick 'n' Rice", description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🍗', variants: singleMeal(4.99, 7.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
+  { name: 'Grilled Chicken Salad', description: 'Meals are served with a choice of fries, naan or steamed rice and a drink.', category: 'Grilled', icon: '🥗', variants: singleMeal(4.99, 7.99), optionGroups: [FLAVOUR_OPTIONS, GRILL_SALAD_OPTIONS, GRILL_SIDE_CHOICE, DRINK_CHOICE_1] },
 
   // ---------- Persian (small = 1 skewer / large = 2 skewers) ----------
   { name: 'Kebab Koobideh', description: 'Seasoned lamb skewers (lamb & beef) served with saffron rice and a grilled tomato.', category: 'Persian', icon: '🍢', variants: [{ label: 'Small (1 skewer)', price: 7.99 }, { label: 'Large (2 skewers)', price: 12.99 }], popular: true },

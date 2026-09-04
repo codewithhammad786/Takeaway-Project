@@ -149,9 +149,16 @@ async function loadCarousel({ endpoint, containerId, prevId, nextId, hideSection
   }
 }
 
+// Appends the visitor's already-chosen branch (if any) so homepage prices match what they'll
+// actually pay — a guest who hasn't picked a branch yet just sees the default (Birmingham) prices.
+function withBranch(endpoint) {
+  const branch = (typeof getGuestDetails === 'function' && getGuestDetails()) || {};
+  return branch.branch ? `${endpoint}&branch=${encodeURIComponent(branch.branch)}` : endpoint;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadCarousel({
-    endpoint: '/menu?category=Popular%20Deals',
+    endpoint: withBranch('/menu?category=Popular%20Deals'),
     containerId: 'deals-carousel',
     prevId: 'deals-prev',
     nextId: 'deals-next',
@@ -159,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   loadCarousel({
-    endpoint: '/menu?popular=true',
+    endpoint: withBranch('/menu?popular=true'),
     containerId: 'popular-items',
     prevId: 'popular-prev',
     nextId: 'popular-next',

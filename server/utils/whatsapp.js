@@ -14,7 +14,8 @@ function withPrefix(number) {
 // Short caption that goes alongside the attached PDF receipt — the PDF itself carries the full
 // itemized detail, so this is just enough to identify the order at a glance in the chat list.
 function formatCaption(order) {
-  return `🔔 New paid order — #${order.orderNumber}\n${order.customerName} — ${order.phone}\nTotal: £${order.total.toFixed(2)}`;
+  const branchLine = order.branch ? `\n${order.branch} branch` : '';
+  return `🔔 New paid order — #${order.orderNumber}${branchLine}\n${order.customerName} — ${order.phone}\nTotal: £${order.total.toFixed(2)}`;
 }
 
 // Best-effort — a manager notification, not something a customer's checkout should ever fail over.

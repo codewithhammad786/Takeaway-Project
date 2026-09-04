@@ -56,8 +56,13 @@ function renderOptionCollapsibleGroup(group, groupName) {
 }
 
 // Renders every option group an item has, given a unique id/name prefix (usually the item id).
-function renderOptionGroupsHTML(item, idPrefix) {
+// `variantLabel` is the customer's currently selected variant (e.g. "Single"/"Meal") — a group
+// marked `mealOnly` (like the Grilled section's side/drink choices) is skipped when "Single" is
+// selected, since those only come with the Meal price; conversely `singleOnly` (like the Grilled
+// section's own salad option) is skipped when "Meal" is selected.
+function renderOptionGroupsHTML(item, idPrefix, variantLabel) {
   return (item.optionGroups || [])
+    .filter((group) => !(group.mealOnly && variantLabel === 'Single') && !(group.singleOnly && variantLabel === 'Meal'))
     .map((group, groupIndex) => {
       if (group.max === 1 && group.choices.length > 1) {
         return renderOptionSelectGroup(group, `option-${escapeHtml(idPrefix)}-${groupIndex}`);

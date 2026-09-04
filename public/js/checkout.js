@@ -102,11 +102,8 @@ function prefillGuestDetails() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (!hasGuestDetails()) {
-    redirectToGuestGate('checkout.html');
-    return;
-  }
-
+  // Branch gate is enforced site-wide by nav.js (loaded before this script runs) — nothing extra
+  // needed here.
   const cart = getCart();
   const form = document.getElementById('checkout-form');
   const placeOrderBtn = document.getElementById('place-order-btn');
@@ -177,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
       customerName: formData.get('customerName'),
       phone: formData.get('phone'),
       email: formData.get('email'),
+      branch: (getGuestDetails() || {}).branch,
     };
     const payload = {
       ...guestDetails,

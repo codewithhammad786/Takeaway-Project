@@ -22,6 +22,10 @@ const optionGroupSchema = new mongoose.Schema(
     choices: { type: [optionChoiceSchema], required: true, validate: (v) => Array.isArray(v) && v.length > 0 },
     max: { type: Number, required: true, min: 1 },
     required: { type: Boolean, default: false },
+    // Gates a group to only one side of a Single/Meal variant choice (e.g. the Grilled section's
+    // side+drink only apply to "Meal", its salad option only to "Single").
+    mealOnly: { type: Boolean, default: false },
+    singleOnly: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -43,6 +47,10 @@ const menuItemSchema = new mongoose.Schema(
     icon: { type: String, default: '🍽️' },
     image: { type: String },
     variants: { type: [variantSchema], required: true, validate: (v) => Array.isArray(v) && v.length > 0 },
+    // Optional per-variant price override for the Stoke-on-Trent branch (matched to `variants` by
+    // label) — same menu everywhere, but lets Stoke be priced differently. Absent/empty means Stoke
+    // just uses the same prices as Birmingham.
+    stokeVariants: { type: [variantSchema], default: undefined },
     optionGroups: { type: [optionGroupSchema], default: [] },
     customization: { type: customizationSchema, default: undefined },
     badge: { type: String, trim: true },

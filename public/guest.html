@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Continue as Guest | Bun 'n Dough</title>
+  <title>Select Your Branch | Bun 'n Dough</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍔</text></svg>" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -37,33 +37,24 @@
   </header>
 
   <main>
-    <section class="page-banner">
-      <div class="container">
-        <h1>Continue as Guest</h1>
-        <p>No password, no account — just tell us who you are so we can send your order.</p>
-      </div>
-    </section>
-
     <section class="section">
       <div class="container">
         <form class="checkout-form auth-form" id="guest-form" novalidate>
           <div id="guest-feedback" class="feedback error" hidden></div>
 
-          <div class="form-group">
-            <label for="guest-name">Full Name</label>
-            <input type="text" id="guest-name" name="customerName" required autocomplete="name" />
-          </div>
-
-          <div class="form-group">
-            <label for="guest-phone">Phone Number</label>
-            <input type="tel" id="guest-phone" name="phone" required autocomplete="tel" placeholder="e.g. 0121 448 4142" />
-          </div>
-
-          <div class="form-group">
-            <label for="guest-email">Email</label>
-            <input type="email" id="guest-email" name="email" required autocomplete="email" />
-            <p class="form-hint">Used for your receipt and to look up your order later — no password needed.</p>
-          </div>
+          <fieldset class="form-group">
+            <legend>Choose your branch</legend>
+            <div class="order-type-toggle">
+              <label class="radio-card">
+                <input type="radio" name="branch" value="Birmingham" required checked />
+                <span>🏙️ Birmingham (Main)</span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="branch" value="Stoke-on-Trent" required />
+                <span>🏙️ Stoke-on-Trent</span>
+              </label>
+            </div>
+          </fieldset>
 
           <button type="submit" class="btn btn-primary btn-block" id="guest-submit">Continue</button>
         </form>

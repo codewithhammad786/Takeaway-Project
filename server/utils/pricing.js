@@ -11,7 +11,18 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-async function buildOrderItems(items) {
+// Resolves the real price to charge for a variant — the Stoke-on-Trent branch can have its own
+// override price per variant label (dbItem.stokeVariants); Birmingham (and any variant Stoke
+// hasn't overridden) just uses the item's normal price.
+function resolveVariantPrice(dbItem, variant, branch) {
+  if (branch !== 'Stoke-on-Trent' || !dbItem.stokeVariants || !dbItem.stokeVariants.length) {
+    return variant.price;
+  }
+  const override = dbItem.stokeVariants.find((v) => v.label === variant.label);
+  return override ? override.price : variant.price;
+}
+
+async function buildOrderItems(items, branch) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new OrderValidationError('Cart is empty');
   }
@@ -39,7 +50,7 @@ async function buildOrderItems(items) {
 
     let selectedOptions = [];
     let selectedGroups = [];
-    let price = variant.price;
+    let price = resolveVariantPrice(dbItem, variant, branch);
 
     if (dbItem.optionGroups && dbItem.optionGroups.length) {
       const requested = Array.isArray(cartItem.selectedOptions) ? cartItem.selectedOptions : [];
