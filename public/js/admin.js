@@ -106,29 +106,27 @@ function describeOrderItems(order) {
 }
 
 function receiptHtml(order) {
-  const itemRows = order.items
+  const itemBlocks = order.items
     .map((i) => {
-      const variant = i.variantLabel && i.variantLabel !== 'Regular' ? `<span class="r-variant">${escapeHtml(i.variantLabel)}</span>` : '';
+      const variant = i.variantLabel && i.variantLabel !== 'Regular' ? ` (${escapeHtml(i.variantLabel)})` : '';
       const options = describeItemModifiers(i, { groupClass: 'r-mod-group', listClass: 'r-mods' });
       return `
-        <tr>
-          <td class="r-item-cell">
-            <div class="r-item-name">${escapeHtml(i.name)} ${variant}</div>
-            ${options}
-          </td>
-          <td class="r-qty-cell">${i.quantity}</td>
-          <td class="r-price-cell">${formatCurrency(i.price)}</td>
-          <td class="r-price-cell r-line-total">${formatCurrency(i.price * i.quantity)}</td>
-        </tr>
+        <div class="r-item">
+          <p class="r-item-name">${escapeHtml(i.name)}${variant}</p>
+          ${options}
+          <p class="r-item-meta">Qty ${i.quantity} &middot; ${formatCurrency(i.price)} each &middot; <strong>${formatCurrency(i.price * i.quantity)}</strong></p>
+        </div>
       `;
     })
-    .join('');
+    .join('<hr class="r-item-divider" />');
 
   const isPaid = order.paymentStatus === 'Paid';
 
   // Sized for an 80mm thermal receipt printer (roughly 72mm printable width) — plain, single-column,
   // system fonts only (no web fonts to wait on), no color/shadow/radius since thermal printers are
-  // monochrome and those effects only cause dithering/misalignment on that hardware.
+  // monochrome and those effects only cause dithering/misalignment on that hardware. Items render as
+  // a full-width stacked list (not a multi-column table) so long names get the whole 72mm instead of
+  // being squeezed into ~half of it and wrapping one word per line.
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -147,79 +145,56 @@ function receiptHtml(order) {
     color: #000;
     background: #fff;
     padding: 3mm 3mm 4mm;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.4;
   }
-  .r-frame { border-top: 3px double #000; border-bottom: 3px double #000; padding: 5px 0 8px; }
+  .r-left { text-align: left; }
   .r-center { text-align: center; }
-  .r-brand-name { font-size: 19px; font-weight: 800; letter-spacing: 0.03em; margin: 0; text-transform: uppercase; }
-  .r-brand-tag { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #333; margin: 3px 0 0; }
-  .r-divider { border: none; border-top: 1px dashed #000; margin: 8px 0; }
-  .r-receipt-label { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin: 2px 0 0; }
-  .r-order-number { font-size: 12px; font-weight: 700; margin: 3px 0 0; letter-spacing: 0.02em; }
-  .r-order-date { font-size: 11px; margin-top: 1px; }
-  .r-status { display: table; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin: 7px auto 0; padding: 3px 12px; border: 1px solid #000; }
-  .r-receipt-no-box { display: table; border: 2px solid #000; padding: 5px 18px; margin: 8px auto 2px; }
-  .r-receipt-no-box .r-receipt-no-label { font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; }
-  .r-receipt-no-box .r-receipt-no-value { font-size: 26px; font-weight: 800; line-height: 1.1; margin: 1px 0 0; }
-  .r-footer-brand { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin: 2px 0 0; }
+  .r-brand-name { font-size: 20px; font-weight: 800; letter-spacing: 0.03em; margin: 0; text-transform: uppercase; text-align: center; }
+  .r-brand-tag { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #333; margin: 3px 0 0; text-align: center; }
+  .r-divider { border: none; border-top: 1px dashed #000; margin: 7px 0; }
+  .r-receipt-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 8px 0 0; }
+  .r-order-number { font-size: 10px; margin: 1px 0 0; color: #333; }
+  .r-receipt-no { font-size: 13px; font-weight: 800; margin: 6px 0 0; }
+  .r-order-date { font-size: 10.5px; margin: 6px 0 0; }
+  .r-amount-paid { font-size: 12px; font-weight: 800; margin: 4px 0 0; }
+  .r-footer-brand { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin: 2px 0 0; }
 
-  .r-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin: 0 0 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
+  .r-section-title { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
   .r-info-col { margin: 8px 0; }
-  .r-info-col p { margin: 0 0 3px; font-size: 12px; }
-  .r-info-col .r-label { font-weight: 600; display: inline-block; min-width: 46px; }
+  .r-info-col p { margin: 0 0 3px; font-size: 11px; }
+  .r-info-col .r-label { font-weight: 600; display: inline-block; min-width: 42px; }
 
-  table.r-items { width: 100%; border-collapse: collapse; margin: 4px 0; }
-  table.r-items thead th {
-    text-align: left;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 0 0 4px;
-    border-bottom: 1px solid #000;
-  }
-  table.r-items thead th.r-qty-cell,
-  table.r-items thead th.r-price-cell { text-align: right; }
-  table.r-items td { padding: 5px 0; vertical-align: top; font-size: 12px; border-bottom: 1px dotted #999; }
-  table.r-items tr:last-child td { border-bottom: none; }
-  .r-item-cell { width: 52%; }
-  .r-item-name { font-weight: 700; }
-  .r-variant { font-weight: 500; font-size: 11px; }
-  .r-mods { margin: 3px 0 0; padding-left: 12px; font-size: 11px; }
+  .r-items-block { margin: 4px 0; }
+  .r-item { padding: 5px 0; }
+  .r-item-divider { border: none; border-top: 1px dotted #999; margin: 0; }
+  .r-item-name { font-weight: 700; font-size: 11.5px; margin: 0; }
+  .r-mods { margin: 3px 0 0; padding-left: 12px; font-size: 10px; }
   .r-mods li { margin-bottom: 1px; }
-  .r-mod-group { margin: 3px 0 0; font-size: 11px; }
+  .r-mod-group { margin: 3px 0 0; font-size: 10px; }
   .r-mod-group-label { font-weight: 700; }
-  .r-qty-cell { text-align: right; }
-  .r-price-cell { text-align: right; white-space: nowrap; }
-  .r-line-total { font-weight: 700; }
+  .r-item-meta { margin: 4px 0 0; font-size: 10px; color: #333; }
 
-  .r-summary-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
-  .r-summary-row.total { border-top: 2px solid #000; margin-top: 5px; padding-top: 7px; font-weight: 800; font-size: 15px; letter-spacing: 0.02em; }
+  .r-summary-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
+  .r-summary-row.total { border-top: 2px solid #000; margin-top: 5px; padding-top: 7px; font-weight: 800; font-size: 14px; letter-spacing: 0.02em; }
 
   .r-notes-box { margin: 8px 0; padding: 6px 8px; border: 1px dashed #000; }
-  .r-notes-box h4 { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 3px; }
-  .r-notes-box p { margin: 0; font-size: 12px; font-style: italic; }
+  .r-notes-box h4 { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 3px; }
+  .r-notes-box p { margin: 0; font-size: 11px; font-style: italic; }
 
   .r-footer { text-align: center; margin-top: 4px; }
-  .r-footer p { margin: 2px 0; font-size: 11px; }
-  .r-thanks { font-weight: 700; font-size: 13px; margin-bottom: 6px !important; }
+  .r-footer p { margin: 2px 0; font-size: 10px; }
 </style>
 </head>
 <body>
-  <div class="r-center">
-    <p class="r-brand-name">Bun 'n Dough</p>
-    <p class="r-brand-tag">Pizza . Burger . Grill</p>
-  </div>
+  <p class="r-brand-name">Bun 'n Dough</p>
+  <p class="r-brand-tag">Pizza . Burger . Grill</p>
 
-  <div class="r-frame">
-    <div class="r-center">
-      <div class="r-receipt-label">Order Receipt</div>
-      <div class="r-order-number">#${escapeHtml(order.orderNumber)}</div>
-      <div class="r-order-date">${new Date(order.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</div>
-      ${order.branch ? `<div class="r-order-date">${escapeHtml(order.branch)} branch</div>` : ''}
-    </div>
-  </div>
+  <p class="r-left r-receipt-label">Order Receipt</p>
+  <p class="r-left r-order-number">#${escapeHtml(order.orderNumber)}</p>
+  <p class="r-left r-order-date">${new Date(order.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+  ${order.branch ? `<p class="r-left r-order-date">${escapeHtml(order.branch)} branch</p>` : ''}
+  <p class="r-left r-amount-paid">${isPaid ? 'Amount Paid' : 'Amount Due'}: ${formatCurrency(order.total)}</p>
 
   <hr class="r-divider" />
 
@@ -238,24 +213,14 @@ function receiptHtml(order) {
       <p><span class="r-label">City:</span> ${escapeHtml(order.city)}</p>
       ${order.postcode ? `<p><span class="r-label">Postcode:</span> ${escapeHtml(order.postcode)}</p>` : ''}
     `
-        : `<p>Collection in-store</p>`
+        : `<p>Collection</p>`
     }
-    <p><span class="r-label">Status:</span> ${escapeHtml(order.status)}</p>
   </div>
 
-  <table class="r-items">
-    <thead>
-      <tr>
-        <th>Item</th>
-        <th class="r-qty-cell">Qty</th>
-        <th class="r-price-cell">Price</th>
-        <th class="r-price-cell">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${itemRows}
-    </tbody>
-  </table>
+  <div class="r-items-block">
+    <div class="r-section-title">Items</div>
+    ${itemBlocks}
+  </div>
 
   <hr class="r-divider" />
   <div class="r-summary-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal)}</span></div>
@@ -267,7 +232,6 @@ function receiptHtml(order) {
 
   <hr class="r-divider" />
   <div class="r-footer">
-    ${order.dailyReceiptNo ? `<p>Receipt No: ${order.dailyReceiptNo}</p>` : ''}
     <p class="r-footer-brand">Bun 'n Dough</p>
   </div>
 
