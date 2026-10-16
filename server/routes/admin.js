@@ -4,8 +4,6 @@ const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const { authenticator } = require('otplib');
-const QRCode = require('qrcode');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const Review = require('../models/Review');
@@ -14,11 +12,7 @@ const User = require('../models/User');
 const requireAdmin = require('../middleware/requireAdmin');
 const upload = require('../middleware/upload');
 const { sendMail } = require('../utils/mailer');
-const {
-  signAdminSessionToken,
-  signPendingTwoFactorToken,
-  verifyPendingTwoFactorToken,
-} = require('../utils/adminAuth');
+const { signAdminSessionToken } = require('../utils/adminAuth');
 
 const router = express.Router();
 
@@ -31,8 +25,8 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-// Slows down both credential-stuffing (password) and code-guessing (2FA) attacks at the network
-// level, on top of the account-level lockout below — two independent layers, either one blocks it.
+// Slows down credential-stuffing attacks at the network level, on top of the account-level
+// lockout below — two independent layers, either one blocks it.
 const adminAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
@@ -45,8 +39,8 @@ function minutesUntil(date) {
   return Math.max(1, Math.ceil((date.getTime() - Date.now()) / 60000));
 }
 
-// POST /api/admin/login — step 1 of 2. Checks the password and account lockout, then hands back
-// either a "set up 2FA" or "enter your code" response — never a full session token from here.
+// POST /api/admin/login — checks the password and account lockout, then issues the full session
+// token directly.
 router.post('/login', adminAuthLimiter, async (req, res, next) => {
   try {
     const { password } = req.body;
@@ -88,84 +82,9 @@ router.post('/login', adminAuthLimiter, async (req, res, next) => {
 
     admin.failedLoginAttempts = 0;
     admin.lockedUntil = undefined;
-
-    const tempToken = signPendingTwoFactorToken();
-
-    if (!admin.twoFactorEnabled) {
-      const secret = authenticator.generateSecret();
-      admin.twoFactorSecret = secret;
-      await admin.save();
-
-      const otpauth = authenticator.keyuri('Manager', "Bun 'n Dough", secret);
-      const qrCode = await QRCode.toDataURL(otpauth);
-
-      return res.json({ requiresSetup: true, qrCode, secret, tempToken });
-    }
-
     await admin.save();
-    res.json({ requiresTwoFactor: true, tempToken });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/admin/verify-2fa — step 2 of 2. Checks the authenticator code against the secret (and,
-// on first-time setup, permanently enables 2FA the moment the first code checks out) before issuing
-// the real session token.
-router.post('/verify-2fa', adminAuthLimiter, async (req, res, next) => {
-  try {
-    const { tempToken, code } = req.body;
-
-    let decoded;
-    try {
-      decoded = verifyPendingTwoFactorToken(tempToken || '');
-    } catch (err) {
-      return res.status(401).json({ message: 'Your session expired — please log in again.' });
-    }
-    void decoded;
-
-    const admin = await Admin.findOne();
-    if (!admin || !admin.twoFactorSecret) {
-      return res.status(400).json({ message: 'Two-factor setup was not started — please log in again.' });
-    }
-
-    const valid = code && authenticator.verify({ token: code.trim(), secret: admin.twoFactorSecret });
-    if (!valid) {
-      return res.status(401).json({ message: 'Incorrect verification code' });
-    }
-
-    if (!admin.twoFactorEnabled) {
-      admin.twoFactorEnabled = true;
-      await admin.save();
-    }
 
     res.json({ token: signAdminSessionToken() });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// PATCH /api/admin/settings/2fa/reset — for when the manager loses their authenticator device.
-// Requires the current password; clears the old secret so the next login re-runs QR setup.
-router.patch('/settings/2fa/reset', requireAdmin, async (req, res, next) => {
-  try {
-    const { currentPassword } = req.body;
-
-    const admin = await Admin.findOne();
-    if (!admin) {
-      return res.status(500).json({ message: 'No manager account exists yet' });
-    }
-
-    const match = await bcrypt.compare(currentPassword || '', admin.passwordHash);
-    if (!match) {
-      return res.status(401).json({ message: 'Current password is incorrect' });
-    }
-
-    admin.twoFactorEnabled = false;
-    admin.twoFactorSecret = undefined;
-    await admin.save();
-
-    res.json({ message: 'Two-factor authentication has been reset. You will set it up again on your next login.' });
   } catch (err) {
     next(err);
   }

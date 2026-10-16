@@ -738,19 +738,7 @@ async function loadDealsRecipientCount() {
   }
 }
 
-// Manager login is a two-step flow: password first, then an authenticator-app code (set up via QR
-// on the very first login, just verified on every login after that). This state tracks which step
-// we're on and the short-lived token the server issues after a correct password to bind step 2 to
-// step 1 — see /api/admin/verify-2fa on the backend.
-let loginStage = 'password';
-let pendingTempToken = null;
-
 function resetLoginForm() {
-  loginStage = 'password';
-  pendingTempToken = null;
-  document.getElementById('admin-password-group').hidden = false;
-  document.getElementById('admin-2fa-setup').hidden = true;
-  document.getElementById('admin-2fa-group').hidden = true;
   document.getElementById('admin-login-submit').textContent = 'Log In';
   document.getElementById('admin-login-form').reset();
 }
@@ -764,43 +752,10 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     loginFeedback.hidden = true;
 
-    if (loginStage === 'password') {
-      const password = document.getElementById('admin-password').value;
-      submitBtn.disabled = true;
-      try {
-        const result = await adminRequest('/login', { method: 'POST', body: JSON.stringify({ password }) });
-        pendingTempToken = result.tempToken;
-        document.getElementById('admin-password-group').hidden = true;
-        document.getElementById('admin-2fa-group').hidden = false;
-
-        if (result.requiresSetup) {
-          loginStage = '2fa-setup';
-          document.getElementById('admin-2fa-qr').src = result.qrCode;
-          document.getElementById('admin-2fa-secret').textContent = result.secret;
-          document.getElementById('admin-2fa-setup').hidden = false;
-          submitBtn.textContent = 'Enable 2FA & Log In';
-        } else {
-          loginStage = '2fa-verify';
-          submitBtn.textContent = 'Verify & Log In';
-        }
-        document.getElementById('admin-2fa-code').focus();
-      } catch (err) {
-        loginFeedback.textContent = err.message;
-        loginFeedback.hidden = false;
-      } finally {
-        submitBtn.disabled = false;
-      }
-      return;
-    }
-
-    // loginStage is '2fa-setup' or '2fa-verify' — either way, just checking the code.
-    const code = document.getElementById('admin-2fa-code').value.trim();
+    const password = document.getElementById('admin-password').value;
     submitBtn.disabled = true;
     try {
-      const { token } = await adminRequest('/verify-2fa', {
-        method: 'POST',
-        body: JSON.stringify({ tempToken: pendingTempToken, code }),
-      });
+      const { token } = await adminRequest('/login', { method: 'POST', body: JSON.stringify({ password }) });
       setAdminToken(token);
       resetLoginForm();
       showPanel();
@@ -808,9 +763,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       loginFeedback.textContent = err.message;
       loginFeedback.hidden = false;
-      if (/session expired/i.test(err.message)) {
-        resetLoginForm();
-      }
     } finally {
       submitBtn.disabled = false;
     }
@@ -917,29 +869,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       sendBtn.disabled = false;
       sendBtn.textContent = 'Send to All Customers';
-    }
-  });
-
-  document.getElementById('admin-2fa-reset-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const feedback = document.getElementById('admin-2fa-reset-feedback');
-    feedback.hidden = true;
-
-    const currentPassword = document.getElementById('admin-2fa-reset-password').value;
-
-    try {
-      const result = await adminRequest('/settings/2fa/reset', {
-        method: 'PATCH',
-        body: JSON.stringify({ currentPassword }),
-      });
-      feedback.textContent = result.message;
-      feedback.className = 'feedback success';
-      feedback.hidden = false;
-      e.target.reset();
-    } catch (err) {
-      feedback.textContent = err.message;
-      feedback.className = 'feedback error';
-      feedback.hidden = false;
     }
   });
 

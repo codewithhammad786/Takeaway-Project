@@ -29,8 +29,8 @@ const MENU_BOXES = [
   { key: 'todays-offers', label: "Today's Offers", emoji: '🎁', categories: ["Today's Offers"], sortByPrice: true, accent: ['#ff8ac2', '#d6337e'] },
   { key: 'all', label: 'All Items', emoji: '⭐', accent: ['#f2d98a', '#b8860b'] },
   // Calzone is deliberately left out here — it's a Pizza-tile item browsable via All Items, not part
-  // of this Pizza + Meal Deal + Munch Box combined box.
-  { key: 'pizza-meal-deals', label: 'Pizza & Meal Deals', emoji: '🍕', categories: ['Pizza', 'Build Your Own Pizza', 'Grill Munch Boxes', 'Combo Munch Boxes', 'Meal Deals'], accent: ['#ff5f5f', '#c81e1e'] },
+  // of this quick box.
+  { key: 'pizza', label: 'Pizza', emoji: '🍕', categories: ['Pizza', 'Build Your Own Pizza'], accent: ['#ff5f5f', '#c81e1e'] },
   { key: 'munch-boxes', label: 'Munch Box Deals', emoji: '🍱', categories: ['Grill Munch Boxes', 'Combo Munch Boxes'], sortByPrice: true, accent: ['#3ddc84', '#1a8f57'] },
 ];
 
@@ -39,6 +39,7 @@ const MENU_BOXES = [
 // labels stay simple. A tile only shows up if at least one item actually exists in it.
 const ALL_CATEGORY_TILES = [
   { label: 'Pizza', categories: ['Pizza', 'Build Your Own Pizza', 'Calzone'], emoji: '🍕', accent: ['#ff5f5f', '#c81e1e'] },
+  { label: 'Meal Deals', categories: ['Meal Deals'], emoji: '🍽️', accent: ['#f2d98a', '#b8860b'] },
   { label: 'Parmesan', categories: ['Parmesan'], emoji: '🧀', accent: ['#ffd65c', '#e6ac00'] },
   { label: 'Kebab', categories: ['Kebabs'], emoji: '🍢', accent: ['#5fb8ff', '#1a6fd6'] },
   { label: 'Wrap', categories: ['Wraps'], emoji: '🌯', accent: ['#7ec8ff', '#2e86d6'] },

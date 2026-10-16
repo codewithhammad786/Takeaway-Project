@@ -1,7 +1,12 @@
-const DELIVERY_FEE = 2.99;
-const FREE_DELIVERY_THRESHOLD = 25;
 const ONLINE_DISCOUNT_RATE = 0.15;
-const MIN_DELIVERY_ORDER = 15;
+const DELIVERY_QUOTE_DEBOUNCE_MS = 500;
+
+// Holds the result of the last /orders/delivery-quote lookup for the postcode currently in the
+// field: null while nothing has been looked up yet (or the postcode was cleared), otherwise
+// { valid: true, miles, deliveryFee, minOrder } or { valid: false, message }.
+let deliveryQuote = null;
+let deliveryQuoteTimer = null;
+let deliveryQuoteRequestId = 0;
 
 function currentOrderType() {
   const checked = document.querySelector('input[name="orderType"]:checked');
@@ -32,14 +37,53 @@ function applyDeliveryAvailability() {
   }
 }
 
+function setDeliveryQuoteNote(text) {
+  const note = document.getElementById('delivery-quote-note');
+  if (note) note.textContent = text || '';
+}
+
+// Debounced postcode lookup — fires 500ms after the customer stops typing (or immediately on an
+// order-type change), rather than on every keystroke.
+function scheduleDeliveryQuote() {
+  if (deliveryQuoteTimer) clearTimeout(deliveryQuoteTimer);
+  deliveryQuoteTimer = setTimeout(fetchDeliveryQuote, DELIVERY_QUOTE_DEBOUNCE_MS);
+}
+
+async function fetchDeliveryQuote() {
+  const postcodeInput = document.getElementById('postcode');
+  const postcode = postcodeInput ? postcodeInput.value.trim() : '';
+
+  if (currentOrderType() !== 'Delivery' || !postcode) {
+    deliveryQuote = null;
+    setDeliveryQuoteNote('');
+    renderCheckoutSummary();
+    return;
+  }
+
+  const branch = (getGuestDetails() || {}).branch;
+  const requestId = ++deliveryQuoteRequestId;
+  setDeliveryQuoteNote('Checking delivery fee for this postcode…');
+
+  try {
+    const quote = await apiRequest('/orders/delivery-quote', {
+      method: 'POST',
+      body: JSON.stringify({ branch, postcode }),
+    });
+    if (requestId !== deliveryQuoteRequestId) return; // a newer lookup superseded this one
+    deliveryQuote = { valid: true, ...quote };
+  } catch (err) {
+    if (requestId !== deliveryQuoteRequestId) return;
+    deliveryQuote = { valid: false, message: err.message };
+  }
+  renderCheckoutSummary();
+}
+
 function renderCheckoutSummary() {
   const cart = getCart();
   const itemsContainer = document.getElementById('checkout-items');
   const subtotal = getCartSubtotal();
   const discount = subtotal * ONLINE_DISCOUNT_RATE;
   const orderType = currentOrderType();
-  const deliveryFee = orderType === 'Delivery' && subtotal < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
-  const total = subtotal - discount + deliveryFee;
 
   itemsContainer.innerHTML = cart
     .map((item) => {
@@ -53,37 +97,76 @@ function renderCheckoutSummary() {
     })
     .join('');
 
+  const deliveryFields = document.getElementById('delivery-fields');
+  const addressInput = document.getElementById('address');
+  const cityInput = document.getElementById('city');
+  const postcodeInput = document.getElementById('postcode');
+  if (orderType === 'Delivery') {
+    deliveryFields.style.display = '';
+    addressInput.required = true;
+    cityInput.required = true;
+    postcodeInput.required = true;
+  } else {
+    deliveryFields.style.display = 'none';
+    addressInput.required = false;
+    cityInput.required = false;
+    postcodeInput.required = false;
+  }
+
+  let deliveryFee = 0;
+  let blockReason = null;
+  const minimumNote = document.getElementById('delivery-minimum-note');
+  const quoteNote = document.getElementById('delivery-quote-note');
+
+  if (orderType !== 'Delivery') {
+    minimumNote.hidden = true;
+    if (quoteNote) {
+      quoteNote.textContent = '';
+      quoteNote.classList.remove('form-hint-error');
+    }
+  } else if (!postcodeInput.value.trim()) {
+    blockReason = 'Enter your postcode to see your delivery fee before continuing.';
+    minimumNote.hidden = true;
+    if (quoteNote) {
+      quoteNote.textContent = '';
+      quoteNote.classList.remove('form-hint-error');
+    }
+  } else if (!deliveryQuote) {
+    blockReason = 'Checking your delivery fee for this postcode…';
+    minimumNote.hidden = true;
+  } else if (!deliveryQuote.valid) {
+    blockReason = deliveryQuote.message;
+    minimumNote.hidden = true;
+    if (quoteNote) {
+      quoteNote.textContent = deliveryQuote.message;
+      quoteNote.classList.add('form-hint-error');
+    }
+  } else {
+    deliveryFee = deliveryQuote.deliveryFee;
+    if (quoteNote) {
+      quoteNote.classList.remove('form-hint-error');
+      quoteNote.textContent = `${deliveryQuote.miles.toFixed(1)} miles away — ${formatCurrency(deliveryQuote.deliveryFee)} delivery fee, ${formatCurrency(deliveryQuote.minOrder)} minimum order.`;
+    }
+    if (subtotal < deliveryQuote.minOrder) {
+      blockReason = `Add ${formatCurrency(deliveryQuote.minOrder - subtotal)} more to reach the ${formatCurrency(deliveryQuote.minOrder)} minimum for delivery to this address, or switch to pickup.`;
+      minimumNote.textContent = blockReason;
+      minimumNote.hidden = false;
+    } else {
+      minimumNote.hidden = true;
+    }
+  }
+
+  const total = subtotal - discount + deliveryFee;
+
   document.getElementById('checkout-subtotal').textContent = formatCurrency(subtotal);
   document.getElementById('checkout-discount').textContent = `− ${formatCurrency(discount)}`;
   document.getElementById('checkout-delivery').textContent = deliveryFee === 0 ? 'Free' : formatCurrency(deliveryFee);
   document.getElementById('checkout-total').textContent = formatCurrency(total);
 
-  const deliveryFields = document.getElementById('delivery-fields');
-  const addressInput = document.getElementById('address');
-  const cityInput = document.getElementById('city');
-  if (orderType === 'Delivery') {
-    deliveryFields.style.display = '';
-    addressInput.required = true;
-    cityInput.required = true;
-  } else {
-    deliveryFields.style.display = 'none';
-    addressInput.required = false;
-    cityInput.required = false;
-  }
-
-  const belowDeliveryMinimum = orderType === 'Delivery' && subtotal < MIN_DELIVERY_ORDER;
-  const minimumNote = document.getElementById('delivery-minimum-note');
-  if (belowDeliveryMinimum) {
-    minimumNote.textContent = `Add ${formatCurrency(MIN_DELIVERY_ORDER - subtotal)} more to reach the £${MIN_DELIVERY_ORDER.toFixed(2)} minimum for delivery, or switch to pickup.`;
-    minimumNote.hidden = false;
-  } else {
-    minimumNote.hidden = true;
-  }
-
   const placeOrderBtn = document.getElementById('place-order-btn');
-  placeOrderBtn.disabled = belowDeliveryMinimum;
+  placeOrderBtn.disabled = !!blockReason;
 
-  return { belowDeliveryMinimum };
+  return { blockReason };
 }
 
 function showCheckoutFeedback(message, type) {
@@ -130,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   applyDeliveryAvailability();
   renderCheckoutSummary();
+  scheduleDeliveryQuote();
   // Re-checked every minute so a customer sitting on this page across the 3pm/7pm/8am boundaries
   // sees the order-type options and closed message update without needing to reload.
   setInterval(() => {
@@ -138,7 +222,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 60000);
 
   document.querySelectorAll('input[name="orderType"]').forEach((radio) => {
-    radio.addEventListener('change', renderCheckoutSummary);
+    radio.addEventListener('change', () => {
+      renderCheckoutSummary();
+      scheduleDeliveryQuote();
+    });
+  });
+
+  document.getElementById('postcode').addEventListener('input', () => {
+    deliveryQuote = null;
+    renderCheckoutSummary();
+    scheduleDeliveryQuote();
   });
 
   form.addEventListener('submit', async (e) => {
@@ -160,9 +253,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const { belowDeliveryMinimum } = renderCheckoutSummary();
-    if (belowDeliveryMinimum) {
-      showCheckoutFeedback(`Minimum order for delivery is ${formatCurrency(MIN_DELIVERY_ORDER)}. Add more items or switch to pickup.`, 'error');
+    const { blockReason } = renderCheckoutSummary();
+    if (blockReason) {
+      showCheckoutFeedback(blockReason, 'error');
       return;
     }
 

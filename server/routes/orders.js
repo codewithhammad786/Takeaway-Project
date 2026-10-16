@@ -2,7 +2,8 @@ const express = require('express');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const stripe = require('../config/stripe');
-const { buildOrderItems, computeTotals, OrderValidationError, MIN_DELIVERY_ORDER } = require('../utils/pricing');
+const { buildOrderItems, computeTotals, OrderValidationError } = require('../utils/pricing');
+const { resolveDeliveryPricing } = require('../utils/distance');
 const { normalizePhone } = require('../utils/twilioVerify');
 const { sendOrderPaidWhatsApp } = require('../utils/whatsapp');
 const { isShopOpen, isDeliveryAvailable, getBusinessDayKey } = require('../utils/businessHours');
@@ -11,6 +12,33 @@ const router = express.Router();
 
 const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const DELIVERY_QUOTE_ERROR_MESSAGES = {
+  invalid_postcode: "We couldn't find that postcode — please check it and try again.",
+  branch_unresolved: "We couldn't work out delivery pricing right now — please try again shortly.",
+  out_of_range: "Sorry, that address is outside our delivery range. Please switch to Pickup.",
+};
+
+// POST /api/orders/delivery-quote — live preview of the delivery fee/minimum for a postcode, used
+// by the checkout page as the customer types so they see the real fee before placing the order.
+// Creates nothing — just a lookup.
+router.post('/delivery-quote', async (req, res, next) => {
+  try {
+    const { branch, postcode } = req.body;
+    if (!['Birmingham', 'Stoke-on-Trent'].includes(branch)) {
+      return res.status(400).json({ message: 'Please choose a branch (Birmingham or Stoke-on-Trent)' });
+    }
+
+    const quote = await resolveDeliveryPricing(branch, postcode);
+    if (!quote.valid) {
+      return res.status(400).json({ message: DELIVERY_QUOTE_ERROR_MESSAGES[quote.reason], reason: quote.reason });
+    }
+
+    res.json({ miles: quote.miles, deliveryFee: quote.deliveryFee, minOrder: quote.minOrder });
+  } catch (err) {
+    next(err);
+  }
+});
 
 function generateOrderNumber() {
   const timePart = Date.now().toString(36).toUpperCase();
@@ -72,6 +100,17 @@ router.post('/', async (req, res, next) => {
     if (orderType === 'Delivery' && (!address || !address.trim() || !city || !city.trim())) {
       return res.status(400).json({ message: 'Address and city are required for delivery orders' });
     }
+    if (orderType === 'Delivery' && (!postcode || !postcode.trim())) {
+      return res.status(400).json({ message: 'Postcode is required for delivery orders' });
+    }
+
+    let deliveryQuote = null;
+    if (orderType === 'Delivery') {
+      deliveryQuote = await resolveDeliveryPricing(branch, postcode);
+      if (!deliveryQuote.valid) {
+        return res.status(400).json({ message: DELIVERY_QUOTE_ERROR_MESSAGES[deliveryQuote.reason] });
+      }
+    }
 
     let orderItems;
     try {
@@ -83,11 +122,15 @@ router.post('/', async (req, res, next) => {
       throw err;
     }
 
-    const { subtotal, discount, deliveryFee, total } = computeTotals(orderItems, orderType);
+    const { subtotal, discount, deliveryFee, total } = computeTotals(
+      orderItems,
+      orderType,
+      deliveryQuote ? deliveryQuote.deliveryFee : 0
+    );
 
-    if (orderType === 'Delivery' && subtotal < MIN_DELIVERY_ORDER) {
+    if (orderType === 'Delivery' && subtotal < deliveryQuote.minOrder) {
       return res.status(400).json({
-        message: `Minimum order for delivery is £${MIN_DELIVERY_ORDER.toFixed(2)} (before discount). Your subtotal is £${subtotal.toFixed(2)} — add more items or switch to pickup.`,
+        message: `Minimum order for delivery to this address is £${deliveryQuote.minOrder.toFixed(2)} (before discount). Your subtotal is £${subtotal.toFixed(2)} — add more items or switch to pickup.`,
       });
     }
 
@@ -109,6 +152,7 @@ router.post('/', async (req, res, next) => {
       address: orderType === 'Delivery' ? address.trim() : undefined,
       city: orderType === 'Delivery' ? city.trim() : undefined,
       postcode: postcode ? postcode.trim() : undefined,
+      deliveryDistanceMiles: deliveryQuote ? deliveryQuote.miles : undefined,
       notes: notes ? notes.trim() : undefined,
       items: orderItems,
       subtotal,

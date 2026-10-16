@@ -40,6 +40,10 @@ const orderSchema = new mongoose.Schema(
     address: { type: String, trim: true },
     city: { type: String, trim: true },
     postcode: { type: String, trim: true },
+    // How far (miles) the customer's postcode was from the branch at order time — drives the
+    // distance-based delivery fee/minimum tiers in server/utils/distance.js. Undefined for Pickup
+    // orders and for any order placed before this existed.
+    deliveryDistanceMiles: { type: Number },
     notes: { type: String, trim: true },
     items: { type: [orderItemSchema], required: true, validate: (v) => Array.isArray(v) && v.length > 0 },
     subtotal: { type: Number, required: true, min: 0 },

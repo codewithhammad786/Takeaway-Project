@@ -1,9 +1,6 @@
 const MenuItem = require('../models/MenuItem');
 
-const FREE_DELIVERY_THRESHOLD = 25;
-const DELIVERY_FEE = 2.99;
 const ONLINE_DISCOUNT_RATE = 0.15;
-const MIN_DELIVERY_ORDER = 15;
 
 class OrderValidationError extends Error {}
 
@@ -103,20 +100,19 @@ async function buildOrderItems(items, branch) {
   return orderItems;
 }
 
-function computeTotals(orderItems, orderType) {
+// deliveryFee is resolved by the caller (see server/utils/distance.js) from the customer's
+// distance to the branch, rather than a flat site-wide fee — pass 0 for Pickup orders.
+function computeTotals(orderItems, orderType, deliveryFee = 0) {
   const subtotal = round2(orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const discount = round2(subtotal * ONLINE_DISCOUNT_RATE);
-  const deliveryFee = orderType === 'Delivery' && subtotal < FREE_DELIVERY_THRESHOLD ? DELIVERY_FEE : 0;
-  const total = round2(subtotal - discount + deliveryFee);
-  return { subtotal, discount, deliveryFee, total };
+  const resolvedDeliveryFee = orderType === 'Delivery' ? round2(deliveryFee) : 0;
+  const total = round2(subtotal - discount + resolvedDeliveryFee);
+  return { subtotal, discount, deliveryFee: resolvedDeliveryFee, total };
 }
 
 module.exports = {
   buildOrderItems,
   computeTotals,
   OrderValidationError,
-  FREE_DELIVERY_THRESHOLD,
-  DELIVERY_FEE,
   ONLINE_DISCOUNT_RATE,
-  MIN_DELIVERY_ORDER,
 };

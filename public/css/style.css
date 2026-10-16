@@ -959,11 +959,6 @@ body.guest-page .page-banner {
     url('https://images.pexels.com/photos/29306498/pexels-photo-29306498.jpeg?auto=compress&cs=tinysrgb&w=1200');
 }
 
-body.admin-page .page-banner {
-  background-image: linear-gradient(120deg, rgba(10, 10, 10, 0.85) 0%, rgba(10, 10, 10, 0.72) 55%, rgba(10, 10, 10, 0.58) 100%),
-    url('https://images.pexels.com/photos/7816894/pexels-photo-7816894.jpeg?auto=compress&cs=tinysrgb&w=1200');
-}
-
 /* A soft ember glow (gold fading into flame red) plus a faint oversized flame icon watermark —
    the same "black + gold + red flame" accent repeated at the top of every inner page. */
 .page-banner::before {
@@ -2169,6 +2164,42 @@ body.home-page .location-badge-secondary {
   padding: 30px 0;
 }
 
+.reorder-prompt {
+  grid-column: 1 / -1;
+  max-width: 420px;
+  margin: 20px auto 0;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: left;
+}
+
+.reorder-title {
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+.reorder-items {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.reorder-items li {
+  padding: 3px 0;
+}
+
+.reorder-note {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  margin: 4px 0 10px;
+}
+
 .feedback {
   max-width: 600px;
   margin: 0 auto 1.6em;
@@ -2368,6 +2399,10 @@ body.home-page .location-badge-secondary {
   font-size: 0.8rem;
   color: var(--color-muted);
   margin: 6px 0 0;
+}
+
+.form-hint-error {
+  color: var(--color-secondary);
 }
 
 .link-btn {
@@ -2768,34 +2803,133 @@ textarea:focus {
   font-weight: 600;
 }
 
-.admin-2fa-setup {
-  text-align: center;
-  margin-bottom: 18px;
-  padding: 16px;
-  background: var(--color-bg);
-  border-radius: var(--radius);
+/* Admin app shell — a slim top bar, a real left sidebar, and a minimal footer, instead of reusing
+   the public site's hero-banner/footer chrome on an internal tool. */
+.admin-topbar {
+  box-shadow: none;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.admin-2fa-setup .form-hint {
-  text-align: left;
+.admin-logout-btn {
+  padding: 6px 16px;
+  font-size: 0.8rem;
 }
 
-.admin-2fa-qr-img {
-  width: 180px;
-  height: 180px;
-  margin: 10px auto;
-  display: block;
-  border-radius: 8px;
-  background: #fff;
-  padding: 8px;
+.admin-body {
+  padding: 32px 0 60px;
+  min-height: calc(100vh - 220px);
 }
 
-.admin-2fa-setup code {
+.admin-login-box {
+  margin-top: 60px;
+}
+
+.admin-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.admin-shell[hidden] {
+  display: none;
+}
+
+.admin-sidebar {
+  flex-shrink: 0;
+  width: 220px;
+  position: sticky;
+  top: 24px;
   background: var(--color-card);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  word-break: break-all;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-sidebar-nav .admin-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.admin-sidebar-nav .admin-tab svg {
+  flex-shrink: 0;
+}
+
+.admin-sidebar-nav .admin-tab:hover {
+  color: var(--color-text);
+  background: rgba(255, 199, 44, 0.06);
+}
+
+.admin-sidebar-nav .admin-tab.active {
+  color: var(--color-primary-dark);
+  background: rgba(255, 199, 44, 0.12);
+}
+
+.admin-sidebar-footer {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.admin-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-page-title {
+  font-size: 1.4rem;
+  margin: 0 0 20px;
+}
+
+.admin-minimal-footer {
+  border-top: 1px solid var(--color-border);
+  padding: 18px 0;
+}
+
+.admin-minimal-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.admin-minimal-footer-inner p {
+  margin: 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .admin-toolbar {
@@ -3382,6 +3516,25 @@ textarea:focus {
 
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-shell {
+    flex-direction: column;
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    position: static;
+  }
+
+  .admin-sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-sidebar-footer {
+    display: none;
   }
 
   .menu-grid,

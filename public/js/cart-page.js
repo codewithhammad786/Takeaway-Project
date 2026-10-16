@@ -1,5 +1,59 @@
 const ONLINE_DISCOUNT_RATE = 0.15;
 
+// Shown only on an empty cart, only for a returning guest (one who has a saved phone+email from a
+// past order) — fetches their most recent paid order and offers to re-add every item in one click,
+// instead of making them rebuild the whole order from the menu again.
+async function renderReorderPrompt() {
+  const guest = getGuestDetails();
+  if (!guest || !guest.phone || !guest.email) return;
+
+  let result;
+  try {
+    result = await apiRequest('/customers/last-order', {
+      method: 'POST',
+      body: JSON.stringify({ phone: guest.phone, email: guest.email }),
+    });
+  } catch (err) {
+    return;
+  }
+
+  if (!result.found || !result.items.length) return;
+
+  const container = document.getElementById('cart-items');
+  const box = document.createElement('div');
+  box.className = 'reorder-prompt';
+  box.innerHTML = `
+    <p class="reorder-title">Reorder your last order? <span class="reorder-note">#${escapeHtml(result.orderNumber)} — ${new Date(result.createdAt).toLocaleDateString('en-GB')}</span></p>
+    <ul class="reorder-items">
+      ${result.items.map((item) => `<li>${item.quantity} × ${escapeHtml(item.name)}</li>`).join('')}
+    </ul>
+    ${result.skipped ? `<p class="reorder-note">${result.skipped} item(s) from that order are no longer available and were left out.</p>` : ''}
+    <button type="button" class="btn btn-primary" id="reorder-add-btn">Add to Cart</button>
+  `;
+  container.appendChild(box);
+
+  document.getElementById('reorder-add-btn').addEventListener('click', () => {
+    result.items.forEach((item) => {
+      addToCart(
+        {
+          menuItemId: item.menuItemId,
+          name: item.name,
+          icon: item.icon,
+          image: item.image,
+          variantLabel: item.variantLabel,
+          price: item.price,
+          selectedOptions: item.selectedOptions,
+          removedToppings: item.removedToppings,
+          addedToppings: item.addedToppings,
+        },
+        item.quantity
+      );
+    });
+    showToast('Your last order has been added to your cart!');
+    renderCartPage();
+  });
+}
+
 function renderCartPage() {
   const container = document.getElementById('cart-items');
   const checkoutBtn = document.getElementById('checkout-btn');
@@ -15,6 +69,7 @@ function renderCartPage() {
     checkoutBtn.classList.add('btn-disabled');
     checkoutBtn.setAttribute('aria-disabled', 'true');
     checkoutBtn.addEventListener('click', (e) => e.preventDefault());
+    renderReorderPrompt();
   } else {
     container.innerHTML = cart
       .map((item) => {

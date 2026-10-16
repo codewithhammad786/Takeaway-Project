@@ -5,7 +5,7 @@
 // no data in seedData.js or menu.js needs to change — this only swaps how that key is *rendered*.
 
 const FOOD_ICON_PATHS = {
-  '🍕': '<path d="M4 19 12 4l8 15Z"/><path d="M4.5 17.5C7 15 17 15 19.5 17.5" stroke-width="2.4"/><circle cx="10.5" cy="13.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14.8" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="17.5" r="1.3" fill="currentColor" stroke="none"/>',
+  '🍕': '<path d="M12 3 4 18h16Z"/><path d="M6 15.2Q12 18 18 15.2" stroke-width="1.6"/><circle cx="12.5" cy="8.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="9.3" cy="13.2" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="12.4" r="1.1" fill="currentColor" stroke="none"/>',
   '🍔': '<path d="M4 9c0-3.3 3.6-6 8-6s8 2.7 8 6"/><line x1="3" y1="11.5" x2="21" y2="11.5"/><line x1="3" y1="14.5" x2="21" y2="14.5"/><path d="M3 17.5h18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
   '🧀': '<path d="M3 12 21 4v16H3Z"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="9.5" cy="17" r="1.1" fill="currentColor" stroke="none"/>',
   '🎉': '<path d="M12 2 21 11 13.2 18.8a2 2 0 0 1-2.8 0L3 11.4V3a1 1 0 0 1 1-1Z"/><circle cx="7.5" cy="7.5" r="1.4" fill="currentColor" stroke="none"/>',
@@ -19,8 +19,8 @@ const FOOD_ICON_PATHS = {
   '🥤': '<path d="M6 8h12l-1.3 11.5a2 2 0 0 1-2 1.8H9.3a2 2 0 0 1-2-1.8Z"/><path d="M5 8h14l1-3H4Z"/><line x1="15" y1="4.5" x2="17.5" y2="1.5"/>',
   '🎁': '<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 9h18"/><path d="M12 9v12"/><path d="M12 9c-2 0-4.5-1-4.5-3.2S9.8 3 12 6c2.2-3 4.5-1.6 4.5.8S14 9 12 9Z"/>',
   '⭐': '<path d="m12 2 2.9 6.6 7.1.6-5.4 4.7 1.7 7L12 17l-6.3 3.9 1.7-7L2 9.2l7.1-.6Z"/>',
-  '🔥': '<path d="M12 2c4 5 7 9 7 13a7 7 0 0 1-14 0c0-4 3-8 7-13Z"/>',
-  '🍱': '<rect x="3" y="7" width="18" height="13" rx="1"/><path d="M3 12h18"/><path d="M3 7l3-3h12l3 3"/>',
+  '🔥': '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  '🍱': '<path d="M4.5 8 7 4h10l2.5 4"/><path d="M3.5 8h17v10.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5Z"/><path d="M8.5 8v5M15.5 8v5"/>',
   '🌯': '<path d="M5 17.5c-2-2-2-5.3 0-7.3l6.7-6.7c2-2 5.3-2 7.3 0s2 5.3 0 7.3l-6.7 6.7c-2 2-5.3 2-7.3 0Z"/><line x1="7.5" y1="7.5" x2="16.5" y2="16.5"/>',
   '🍚': '<path d="M4 12h16a8 4.5 0 0 1-16 0Z"/><path d="M9 12c0-3.5.8-5 .8-6.5M12.3 12c0-4.2.8-6 .8-7.5M15.5 12c0-3.5.8-5 .8-6.5"/>',
   '🍞': '<path d="M4 14a8 6.5 0 0 1 16 0v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M8 10.5 9 14M12 9.5 13 14M16 10.5 17 14"/>',
@@ -38,7 +38,7 @@ const FOOD_ICON_PATHS = {
 
 // Each icon gets its own brand accent instead of one flat colour everywhere — reuses the same
 // palette already assigned to each category's quick-pick box/tile (MENU_BOXES/ALL_CATEGORY_TILES
-// in menu.js) so a pizza icon and the "Pizza & Meal Deals" badge read as the same colour family.
+// in menu.js) so a pizza icon and the "Pizza" badge read as the same colour family.
 const FOOD_ICON_ACCENTS = {
   '🍕': '#ff5f5f',
   '🍔': '#e08a3c',

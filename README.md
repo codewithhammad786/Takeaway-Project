@@ -11,8 +11,9 @@ A full takeaway ordering website for **Bun 'n Dough** (Pizza, Burger and Grill �
 - **Per-pizza customization** — click "Customize" on any of the 13 fixed pizzas to open a modal: remove any of its default toppings for free, or add extra toppings for £1.00 each, with the price updating live as you change size/toppings
 - **Guest checkout, no account needed** — just name, phone, and email at checkout. "Track My Orders" (`orders.html`) looks up your order history by re-entering that same phone + email, with the option to remove your own unpaid/abandoned orders
 - Cart (persisted in the browser via `localStorage`, synced live across tabs) with quantity controls — each distinct variant/option combination is its own line
-- Automatic **15% online-order discount**, applied to every order, plus a **£15 minimum order for delivery** (no minimum for pickup)
-- Checkout with delivery/pickup toggle, form validation, and a live order summary
+- Automatic **15% online-order discount**, applied to every order, plus a **distance-based delivery fee and minimum order** — the further the customer's postcode is from the branch, the higher the tier (free delivery and a £10 minimum under 1 mile, rising in steps to a £5.50 fee and £20 minimum at 6 miles; beyond that, delivery isn't offered and pickup is suggested instead)
+- Checkout with delivery/pickup toggle, a live postcode-based delivery-fee lookup, form validation, and a live order summary
+- **Reorder your last order** — a returning guest with an empty cart (identified by the phone + email saved from a past order) is offered a one-click "Add to Cart" button that re-adds every item from their most recent paid order
 - **Real card payment via Stripe Checkout** — customer is redirected to Stripe's hosted payment page, then back to a confirmation page once payment is verified server-side
 - **Dedicated Contact page** (`contact.html`) with both branches' address/phone/opening hours and a **customer review system** — anyone can leave a star rating + comment, which is held for staff approval before it appears publicly
 - **Staff admin page** (`/admin.html`) — separate password-protected login, with five tabs:
@@ -20,7 +21,7 @@ A full takeaway ordering website for **Bun 'n Dough** (Pizza, Burger and Grill �
   - **Menu Images** — upload/replace the real photo for any menu item directly from the dashboard (stored on the server and served from `/uploads`, no code changes needed)
   - **Reviews** — approve or delete customer-submitted reviews before they go live
   - **Deals** — write a subject + message and email every customer who's ordered before about a deal, with a live recipient count, a confirmation prompt, and a one-click unsubscribe link built into every email
-  - **Settings** — change the manager password, or reset two-factor authentication
+  - **Settings** — change the manager password, anytime (no need to touch `.env` or restart the server)
 - REST API backed by MongoDB, with server-side price recalculation so totals (including variant price and every selected option's price) can't be tampered with from the browser, and server-side payment verification so an order can't be marked paid without a real completed Stripe session
 
 ## Tech Stack
@@ -28,7 +29,7 @@ A full takeaway ordering website for **Bun 'n Dough** (Pizza, Burger and Grill �
 - **Frontend:** HTML, CSS, vanilla JavaScript (no build step)
 - **Backend:** Node.js, Express
 - **Database:** MongoDB (via Mongoose)
-- **Auth:** No customer login — guest checkout identified by phone + email. Staff login uses bcrypt + TOTP two-factor, its own JWT-based session
+- **Auth:** No customer login — guest checkout identified by phone + email. Staff login uses a bcrypt-hashed password with account lockout after repeated failures, its own JWT-based session
 - **Email:** Nodemailer over SMTP, for deal broadcasts and guest unsubscribe links
 - **Payments:** Stripe Checkout (test mode by default)
 - **Currency:** GBP (£)
@@ -133,10 +134,9 @@ There's no account to create — browse the menu freely, add items to your cart,
 
 Go to **http://localhost:5000/admin.html** and log in with the `ADMIN_PASSWORD` you set in `.env` — this creates the manager account the first time the server starts. It's a completely separate login from customer accounts: `admin.html` is never linked from anywhere on the public site, so only someone who already knows that URL can even reach it.
 
-The manager login itself is protected by two independent layers, since this account controls the entire business:
+Login is password-only, protected by:
 
-- **Two-factor authentication** — the very first successful login shows a QR code to scan with an authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.); every login after that requires the current 6-digit code from the app, not just the password. No third-party service or ongoing cost — it's all self-contained (industry-standard TOTP). Lost the authenticator device? Reset it from the **Settings** tab with the current password, then set it up again on the next login.
-- **Lockout after repeated failed passwords** — 5 wrong passwords in a row locks the account for 15 minutes, and there's a separate network-level rate limit on both the password and code-entry steps to slow down any automated guessing.
+- **Lockout after repeated failed passwords** — 5 wrong passwords in a row locks the account for 15 minutes, and there's a separate network-level rate limit on the login endpoint to slow down any automated guessing.
 
 The dashboard has six tabs:
 
@@ -145,17 +145,17 @@ The dashboard has six tabs:
 - **Menu Images** — upload a real photo for any item, just pick the item's card and choose a file.
 - **Reviews** — approve or delete customer-submitted reviews before they appear on `contact.html`.
 - **Deals** — write a subject + message, see how many customers it'll reach, and email everyone who's ordered before about a deal, with a confirmation prompt before sending.
-- **Settings** — change the manager password, or reset two-factor authentication, anytime (no need to touch `.env` or restart the server).
+- **Settings** — change the manager password anytime (no need to touch `.env` or restart the server).
 
 ## How Ordering Works
 
 1. **Menu** (`menu.html`) — open to everyone, no login. Items are fetched from `GET /api/menu` and shown with a real photo (falls back to the item's emoji automatically if the photo fails to load). Items with more than one size show a dropdown; items with a flavour/topping choice show chips (radio for single-choice, checkboxes capped at the item's max for toppings). "Add to Cart" stores the selected variant + options in `localStorage` — the home page's deal carousels also have a quick-add button that opens the same customization modal.
 2. **Cart** (`cart.html`) — lets you adjust quantities or remove lines before checking out; shows the automatic 15% discount. Cart state stays in sync live across browser tabs.
-3. **Checkout** (`checkout.html`) — collects name, phone, and email (all required, no password) plus delivery/pickup details (delivery fee is £2.99, free over £25 subtotal, £15 minimum order), and submits to `POST /api/orders`. The server re-looks-up each item's variant price and validates selected options from the database, finds-or-creates a guest customer record keyed by phone number, creates a **pending** order linked to it, opens a Stripe Checkout Session for the total, and redirects you to Stripe's hosted payment page. The cart is *not* cleared yet at this point. Your details are also saved to `localStorage` so they prefill next time.
+3. **Checkout** (`checkout.html`) — collects name, phone, and email (all required, no password) plus delivery/pickup details. For delivery, typing a postcode calls `POST /api/orders/delivery-quote` (geocoded via the free [postcodes.io](https://postcodes.io) API, distance measured as a straight-line Haversine calculation from the branch) to show the real fee and minimum order for that distance before submitting, via `POST /api/orders`. The server re-looks-up each item's variant price and validates selected options from the database, re-resolves the delivery fee/minimum server-side from the postcode (never trusting the client-shown quote), finds-or-creates a guest customer record keyed by phone number, creates a **pending** order linked to it, opens a Stripe Checkout Session for the total, and redirects you to Stripe's hosted payment page. The cart is *not* cleared yet at this point. Your details are also saved to `localStorage` so they prefill next time.
 4. **Payment** — happens entirely on Stripe's page; card details never touch this server. On success, Stripe redirects back to the confirmation page with a session ID; on cancel, it returns to checkout with the cart still intact.
 5. **Confirmation** (`order-confirmation.html`) — if a Stripe session ID is present, calls `POST /api/orders/:id/confirm-payment`, which verifies with Stripe that the session was actually paid and that the session ID matches the order before marking it paid — only then is the cart cleared and the order shown.
-6. **Track My Orders** (`orders.html`) — no account needed: enter the phone number and email used when ordering (`POST /api/customers/lookup-orders`) to see that guest's full order history, most recent first, with the option to remove your own unpaid orders.
-7. **Admin** (`admin.html`) — staff log in with a separate password + two-factor code (`POST /api/admin/login` / `/verify-2fa`), then see all orders (polled every 15s), with a payment-status badge and a dropdown to update each order's kitchen status.
+6. **Track My Orders** (`orders.html`) — no account needed: enter the phone number and email used when ordering (`POST /api/customers/lookup-orders`) to see that guest's full order history, most recent first, with the option to remove your own unpaid orders. The same phone + email pair also powers the "reorder your last order" prompt shown on an empty cart (`POST /api/customers/last-order`).
+7. **Admin** (`admin.html`) — staff log in with a separate password (`POST /api/admin/login`), then see all orders (polled every 15s), with a payment-status badge and a dropdown to update each order's kitchen status.
 
 ## Customizing
 
@@ -163,7 +163,8 @@ The dashboard has six tabs:
 - **Menu items:** edit `server/seed/seedData.js` and re-run `npm run seed`. Each item has a `variants` array (at least one `{label, price}`), an optional `optionGroups` array — each group is `{label, choices, max, required}` where `choices` is a list of `{label, price}` (set `price: 0` for a free choice) — for one or more independent option pickers per item (e.g. a burger can have a Salad group and a Sauce group at once), an optional `customization` (`{defaultToppings, extraToppingPrice, availableToppings}`) for the pizza remove/add-topping modal, and an `image` URL (overridden automatically once you upload a real photo via the admin dashboard).
 - **Extra topping price:** the `EXTRA_TOPPING_PRICE` constant near the top of `server/seed/seedData.js` (currently £1.00), re-seed after changing it.
 - **Branding/colors:** CSS variables are defined at the top of `public/css/style.css` (`:root`).
-- **Online discount / delivery fee / free delivery threshold:** constants at the top of `server/utils/pricing.js` (used by order creation) and the matching ones in `public/js/checkout.js` / `public/js/cart-page.js` (used for the live on-page preview before the server recomputes the real total).
+- **Online discount:** the `ONLINE_DISCOUNT_RATE` constant in `server/utils/pricing.js` (used by order creation) and the matching one in `public/js/checkout.js` / `public/js/cart-page.js` (used for the live on-page preview before the server recomputes the real total).
+- **Delivery fee / minimum order tiers:** the `DELIVERY_TIERS` table and branch postcodes in `server/utils/distance.js` — each tier is `{ maxMiles, fee, minOrder }`.
 
 ## Notes / Scope
 
