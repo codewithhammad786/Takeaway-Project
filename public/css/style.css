@@ -2891,6 +2891,40 @@ textarea:focus {
   padding-top: 12px;
 }
 
+.admin-tab-badge {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-secondary);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.admin-tab-badge[hidden] {
+  display: none;
+}
+
+/* Mobile-only pieces — hidden on desktop, switched on inside the 900px breakpoint below. */
+.admin-menu-toggle,
+.admin-sidebar-head,
+.admin-drawer-backdrop {
+  display: none;
+}
+
+.admin-topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-topbar-actions[hidden] {
+  display: none;
+}
+
 .admin-content {
   flex: 1;
   min-width: 0;
@@ -3518,23 +3552,108 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  /* Admin on phones: the public site's hamburger rules would hide the whole header nav (Log Out
+     included), so the admin header keeps its own actions visible and the sidebar becomes a
+     slide-in drawer opened from the Menu button. */
+  .admin-topbar .nav {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    gap: 10px;
+    background: none;
+    box-shadow: none;
+  }
+
+  .admin-topbar #live-status-badge {
+    display: none;
+  }
+
+  .admin-topbar-actions .btn {
+    white-space: nowrap;
+  }
+
+  .admin-topbar .header-inner {
+    gap: 10px;
+  }
+
+  .admin-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+  }
+
   .admin-shell {
-    flex-direction: column;
+    display: block;
   }
 
   .admin-sidebar {
-    width: 100%;
-    position: static;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1100;
+    width: min(290px, 85vw);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 16px;
+    overflow-y: auto;
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0.25s;
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.6);
   }
 
-  .admin-sidebar-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  .admin-drawer-open .admin-sidebar {
+    transform: translateX(0);
+    visibility: visible;
   }
 
-  .admin-sidebar-footer {
-    display: none;
+  .admin-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 800;
+    color: var(--color-primary);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .admin-drawer-close {
+    background: none;
+    border: none;
+    color: var(--color-text);
+    font-size: 1.8rem;
+    line-height: 1;
+    padding: 0 6px;
+    cursor: pointer;
+  }
+
+  .admin-sidebar-nav .admin-tab {
+    padding: 13px 12px;
+    font-size: 0.95rem;
+  }
+
+  .admin-drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .admin-drawer-open .admin-drawer-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .admin-drawer-open {
+    overflow: hidden;
   }
 
   .menu-grid,
@@ -3560,6 +3679,17 @@ textarea:focus {
 
   .footer-grid {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Small phones: drop the tagline so the logo, Menu and Log Out all fit on one header row. */
+@media (max-width: 520px) {
+  .admin-topbar .logo-tag {
+    display: none;
+  }
+
+  .admin-topbar .logo-name {
+    font-size: 1rem;
   }
 }
 

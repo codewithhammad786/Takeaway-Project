@@ -16,8 +16,8 @@ A full takeaway ordering website for **Bun 'n Dough** (Pizza, Burger and Grill �
 - **Reorder your last order** — a returning guest with an empty cart (identified by the phone + email saved from a past order) is offered a one-click "Add to Cart" button that re-adds every item from their most recent paid order
 - **Real card payment via Stripe Checkout** — customer is redirected to Stripe's hosted payment page, then back to a confirmation page once payment is verified server-side
 - **Dedicated Contact page** (`contact.html`) with both branches' address/phone/opening hours and a **customer review system** — anyone can leave a star rating + comment, which is held for staff approval before it appears publicly
-- **Staff admin page** (`/admin.html`) — separate password-protected login, with five tabs:
-  - **Orders** — live incoming orders (auto-refreshes every 15s), update each order's status (Pending → Preparing → ... → Completed), filterable by payment status
+- **Staff admin page** (`/admin.html`) — separate password-protected login, with a sidebar menu (a slide-out drawer on phones):
+  - **New Orders / Completed Orders / All Orders** — live orders (auto-refreshes every 15s) split across three pages: New Orders shows everything not yet Completed (with a count badge in the menu), and setting an order's status to Completed moves it to Completed Orders. Filterable by payment status and branch
   - **Menu Images** — upload/replace the real photo for any menu item directly from the dashboard (stored on the server and served from `/uploads`, no code changes needed)
   - **Reviews** — approve or delete customer-submitted reviews before they go live
   - **Deals** — write a subject + message and email every customer who's ordered before about a deal, with a live recipient count, a confirmation prompt, and a one-click unsubscribe link built into every email
@@ -138,10 +138,12 @@ Login is password-only, protected by:
 
 - **Lockout after repeated failed passwords** — 5 wrong passwords in a row locks the account for 15 minutes, and there's a separate network-level rate limit on the login endpoint to slow down any automated guessing.
 
-The dashboard has six tabs:
+The dashboard sidebar has these pages:
 
 - **Dashboard** — today/this week/this month earnings, a 7-day earnings chart, and your top 5 selling items, all computed from real paid orders.
-- **Orders** — the live order queue, with status updates.
+- **New Orders** — paid orders still to be made, with status updates; once marked **Completed** an order leaves this page.
+- **Completed Orders** — every order marked Completed.
+- **All Orders** — everything, including unpaid/abandoned orders.
 - **Menu Images** — upload a real photo for any item, just pick the item's card and choose a file.
 - **Reviews** — approve or delete customer-submitted reviews before they appear on `contact.html`.
 - **Deals** — write a subject + message, see how many customers it'll reach, and email everyone who's ordered before about a deal, with a confirmation prompt before sending.

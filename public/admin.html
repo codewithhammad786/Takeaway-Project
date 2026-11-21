@@ -24,7 +24,11 @@
         </span>
       </span>
       <nav class="nav" id="nav-menu">
-        <span id="admin-logout-wrap" hidden>
+        <span id="admin-logout-wrap" class="admin-topbar-actions" hidden>
+          <button type="button" id="admin-menu-toggle" class="btn btn-outline admin-menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="admin-sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+            Menu
+          </button>
           <button id="admin-logout" class="btn btn-outline" style="padding: 6px 16px; font-size: 0.8rem;">Log Out</button>
         </span>
       </nav>
@@ -48,15 +52,29 @@
       </div>
 
       <div id="admin-panel" class="admin-shell" hidden>
-        <aside class="admin-sidebar">
+        <div class="admin-drawer-backdrop" id="admin-drawer-backdrop"></div>
+        <aside class="admin-sidebar" id="admin-sidebar">
+          <div class="admin-sidebar-head">
+            <span>Manager Menu</span>
+            <button type="button" class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu">&times;</button>
+          </div>
           <nav class="admin-sidebar-nav" id="admin-sidebar-nav">
             <button type="button" class="admin-tab active" data-tab="dashboard">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
               <span>Dashboard</span>
             </button>
-            <button type="button" class="admin-tab" data-tab="orders">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12l1 4H5l1-4z"/><path d="M4 6h16l-1.5 14.5a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1L4 6z"/><line x1="9" y1="10" x2="15" y2="10"/></svg>
-              <span>Orders</span>
+            <button type="button" class="admin-tab" data-tab="orders-new">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+              <span>New Orders</span>
+              <span class="admin-tab-badge" id="new-orders-badge" hidden>0</span>
+            </button>
+            <button type="button" class="admin-tab" data-tab="orders-completed">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
+              <span>Completed Orders</span>
+            </button>
+            <button type="button" class="admin-tab" data-tab="orders-all">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
+              <span>All Orders</span>
             </button>
             <button type="button" class="admin-tab" data-tab="images">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
@@ -121,7 +139,7 @@
           </div>
 
           <div id="admin-tab-orders" class="admin-tab-panel" hidden>
-            <h1 class="admin-page-title">Orders</h1>
+            <h1 class="admin-page-title" id="admin-orders-title">New Orders</h1>
             <div class="admin-toolbar">
               <div class="admin-filter">
                 <label for="payment-filter">Show:</label>

@@ -48,6 +48,7 @@ async function adminRequest(path, options = {}) {
 }
 
 function showLogin() {
+  closeAdminDrawer();
   document.getElementById('admin-login').hidden = false;
   document.getElementById('admin-panel').hidden = true;
   document.getElementById('admin-logout-wrap').hidden = true;
@@ -309,15 +310,50 @@ function autoPrintNewOrders() {
   saveAutoPrintSeenIds(seen);
 }
 
+// The three order pages in the sidebar share one panel and just filter it differently: "new" is
+// everything not yet Completed, "completed" is only Completed ones, "all" is everything. Marking an
+// order Completed therefore moves it from New Orders to Completed Orders on the next render.
+let ordersView = 'new';
+
+const ORDER_VIEW_TITLES = { new: 'New Orders', completed: 'Completed Orders', all: 'All Orders' };
+const ORDER_VIEW_EMPTY = {
+  new: 'No new orders right now.',
+  completed: 'No completed orders yet.',
+  all: 'No orders to show.',
+};
+
+function updateNewOrdersBadge() {
+  const badge = document.getElementById('new-orders-badge');
+  if (!badge) return;
+  const count = allOrders.filter((o) => o.paymentStatus === 'Paid' && o.status !== 'Completed').length;
+  badge.textContent = count;
+  badge.hidden = count === 0;
+}
+
+function setOrdersView(view) {
+  const changed = view !== ordersView;
+  ordersView = ORDER_VIEW_TITLES[view] ? view : 'new';
+  document.getElementById('admin-orders-title').textContent = ORDER_VIEW_TITLES[ordersView];
+  if (changed) {
+    document.getElementById('payment-filter').value = ordersView === 'all' ? 'all' : 'Paid';
+  }
+  renderOrders();
+}
+
 function renderOrders() {
+  updateNewOrdersBadge();
+
   const filter = document.getElementById('payment-filter').value;
   const branchFilter = document.getElementById('branch-filter').value;
   const container = document.getElementById('admin-orders');
-  let orders = filter === 'all' ? allOrders : allOrders.filter((o) => o.paymentStatus === filter);
+  let orders = allOrders;
+  if (ordersView === 'new') orders = orders.filter((o) => o.status !== 'Completed');
+  else if (ordersView === 'completed') orders = orders.filter((o) => o.status === 'Completed');
+  if (filter !== 'all') orders = orders.filter((o) => o.paymentStatus === filter);
   if (branchFilter !== 'all') orders = orders.filter((o) => o.branch === branchFilter);
 
   if (!orders.length) {
-    container.innerHTML = '<p class="empty-state">No orders to show.</p>';
+    container.innerHTML = `<p class="empty-state">${ORDER_VIEW_EMPTY[ordersView]}</p>`;
     return;
   }
 
@@ -368,6 +404,7 @@ function renderOrders() {
         await adminRequest(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: select.value }) });
         const order = allOrders.find((o) => o._id === id);
         if (order) order.status = select.value;
+        renderOrders();
       } catch (err) {
         alert(`Failed to update status: ${err.message}`);
         if (previous) select.value = previous;
@@ -702,16 +739,37 @@ async function loadDashboard() {
   }
 }
 
+// On phones the sidebar is an off-canvas drawer opened from the header's Menu button. It's a plain
+// body class so the CSS owns all the sliding/backdrop behaviour; desktop ignores it entirely.
+function setAdminDrawer(open) {
+  document.body.classList.toggle('admin-drawer-open', open);
+  const toggle = document.getElementById('admin-menu-toggle');
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+}
+
+function closeAdminDrawer() {
+  setAdminDrawer(false);
+}
+
 function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach((btn) => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
   });
+  const isOrdersTab = tab.startsWith('orders-');
   document.getElementById('admin-tab-dashboard').hidden = tab !== 'dashboard';
-  document.getElementById('admin-tab-orders').hidden = tab !== 'orders';
+  document.getElementById('admin-tab-orders').hidden = !isOrdersTab;
   document.getElementById('admin-tab-images').hidden = tab !== 'images';
   document.getElementById('admin-tab-reviews').hidden = tab !== 'reviews';
   document.getElementById('admin-tab-deals').hidden = tab !== 'deals';
   document.getElementById('admin-tab-settings').hidden = tab !== 'settings';
+
+  if (isOrdersTab) {
+    setOrdersView(tab.slice('orders-'.length));
+  }
+  closeAdminDrawer();
 
   if (tab === 'dashboard' && !dashboardLoaded) {
     loadDashboard();
@@ -793,6 +851,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('.admin-tab').forEach((btn) => {
     btn.addEventListener('click', () => switchAdminTab(btn.getAttribute('data-tab')));
+  });
+
+  document.getElementById('admin-menu-toggle').addEventListener('click', () => {
+    setAdminDrawer(!document.body.classList.contains('admin-drawer-open'));
+  });
+  document.getElementById('admin-drawer-close').addEventListener('click', closeAdminDrawer);
+  document.getElementById('admin-drawer-backdrop').addEventListener('click', closeAdminDrawer);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAdminDrawer();
   });
 
   document.getElementById('admin-footer-settings-link').addEventListener('click', () => {
