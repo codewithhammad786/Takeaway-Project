@@ -149,6 +149,17 @@ The dashboard sidebar has these pages:
 - **Deals** — write a subject + message, see how many customers it'll reach, and email everyone who's ordered before about a deal, with a confirmation prompt before sending.
 - **Settings** — change the manager password anytime (no need to touch `.env` or restart the server).
 
+### 8. Automatic receipt printing (Epson TM-m30II, optional)
+
+Paid orders can print on the shop's Epson receipt printer by themselves, with no phone, tablet or computer left open. The printer, connected to the router by Ethernet, asks the website every few seconds whether a new paid order is waiting (Epson's **Server Direct Print**); if so, the site replies with the receipt and the printer prints it, then confirms. The code is in `server/routes/printer.js` (the endpoint) and `server/utils/receiptEpos.js` (the receipt layout).
+
+1. Add a **`PRINTER_KEY`** variable to your hosting (Railway → service → Variables): a long random value using only letters and numbers (32+ characters). Until it is set, the endpoint stays switched off.
+2. Check it works by opening `https://YOUR-DOMAIN/api/printer/sdp?key=YOUR_KEY` in a browser — it should show `{"ok":true,"receiptsWaiting":0}`. A wrong key shows "Forbidden".
+3. Open the printer's settings page (`http://PRINTER-IP`), find **Server Direct Print**, enable it, and enter that same address (`https://YOUR-DOMAIN/api/printer/sdp?key=YOUR_KEY`) as the server URL, with an interval of about 5 seconds.
+4. Place a test order. The admin order card shows **Printed** once the printer confirms. **Send to Receipt Printer** on any paid order prints it again.
+
+Only orders paid after the feature goes live are queued, and only for 3 hours, so enabling the printer never reprints old orders. If the printer doesn't confirm a receipt within 2 minutes it is sent one more time, then left alone. Layout width and the £ sign can be tuned with the optional `RECEIPT_COLUMNS` (default 42; use 32 for 58mm paper) and `RECEIPT_CURRENCY` (set to `GBP` if £ prints wrongly) variables.
+
 ## How Ordering Works
 
 1. **Menu** (`menu.html`) — open to everyone, no login. Items are fetched from `GET /api/menu` and shown with a real photo (falls back to the item's emoji automatically if the photo fails to load). Items with more than one size show a dropdown; items with a flavour/topping choice show chips (radio for single-choice, checkboxes capped at the item's max for toppings). "Add to Cart" stores the selected variant + options in `localStorage` — the home page's deal carousels also have a quick-add button that opens the same customization modal.

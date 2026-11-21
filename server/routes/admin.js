@@ -144,6 +144,27 @@ router.patch('/orders/:id/status', requireAdmin, async (req, res, next) => {
   }
 });
 
+// PATCH /api/admin/orders/:id/reprint — puts a paid order back in the receipt printer's queue (e.g.
+// the paper ran out, or the printer was off). The printer picks it up on its next poll.
+router.patch('/orders/:id/reprint', requireAdmin, async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.paymentStatus !== 'Paid') {
+      return res.status(400).json({ message: 'Only paid orders can be sent to the receipt printer' });
+    }
+
+    order.receiptQueuedAt = new Date();
+    order.receiptPrintClaimedAt = undefined;
+    order.receiptPrintedAt = undefined;
+    order.receiptPrintAttempts = 0;
+    await order.save();
+    res.json(order);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // DELETE /api/admin/orders/:id — lets the manager remove an order (e.g. a stray test order, or a
 // mistaken/duplicate one) from the dashboard entirely. Unlike the customer-facing delete route,
 // this isn't limited to unpaid orders — it's a manager action, not a self-service cancellation.

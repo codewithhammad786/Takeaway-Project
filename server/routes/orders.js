@@ -224,6 +224,7 @@ router.post('/:id/confirm-payment', async (req, res, next) => {
     }
 
     order.paymentStatus = 'Paid';
+    order.receiptQueuedAt = new Date();
     await order.save();
 
     // Fire-and-forget — a manager notification should never delay or break the customer's

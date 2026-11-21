@@ -61,6 +61,14 @@ const orderSchema = new mongoose.Schema(
       default: 'Unpaid',
     },
     stripeSessionId: { type: String },
+    // Receipt-printer queue (see server/routes/printer.js). receiptQueuedAt is set when payment is
+    // confirmed (or when the manager re-sends an order); the printer only ever picks up recently
+    // queued orders, so enabling the printer never reprints old history. Claimed = handed to the
+    // printer, Printed = the printer confirmed it actually printed.
+    receiptQueuedAt: { type: Date },
+    receiptPrintClaimedAt: { type: Date },
+    receiptPrintAttempts: { type: Number, default: 0 },
+    receiptPrintedAt: { type: Date },
   },
   { timestamps: true }
 );

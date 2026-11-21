@@ -14,6 +14,7 @@ const adminRoutes = require('./routes/admin');
 const customerRoutes = require('./routes/customers');
 const reviewRoutes = require('./routes/reviews');
 const marketingRoutes = require('./routes/marketing');
+const printerRoutes = require('./routes/printer');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +24,9 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 if (!process.env.ADMIN_SESSION_SECRET) {
   console.warn('⚠️  ADMIN_SESSION_SECRET not set — admin login will fail until configured in .env');
+}
+if (!process.env.PRINTER_KEY) {
+  console.log('ℹ️  PRINTER_KEY is not set — automatic receipt printing (/api/printer/sdp) is switched off.');
 }
 if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
   console.warn('⚠️  SMTP settings are not fully set — sending deal emails from the Deals tab will fail until configured in .env');
@@ -35,6 +39,10 @@ if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
+
+// The receipt printer polls every few seconds from the shop's IP, so it has to sit outside the
+// shared limiter below (it's protected by its own secret key instead). Disabled until PRINTER_KEY is set.
+app.use('/api/printer', printerRoutes);
 
 // Baseline defense-in-depth on top of the tighter per-route limiters on /api/customers and
 // /api/admin/login — generous enough to never affect normal browsing/polling, just there to blunt

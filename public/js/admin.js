@@ -366,6 +366,13 @@ function renderOrders() {
           <strong>#${escapeHtml(order.orderNumber)}</strong>
           <span class="admin-pay-badge ${order.paymentStatus === 'Paid' ? 'paid' : 'unpaid'}">${escapeHtml(order.paymentStatus)}</span>
           ${order.branch ? `<span class="admin-branch-badge">${escapeHtml(order.branch)}</span>` : ''}
+          ${
+            order.receiptPrintedAt
+              ? '<span class="admin-print-badge printed">🖨️ Printed</span>'
+              : order.receiptPrintClaimedAt && order.paymentStatus === 'Paid'
+              ? '<span class="admin-print-badge pending">🖨️ Sent to printer…</span>'
+              : ''
+          }
         </div>
         <span>${new Date(order.createdAt).toLocaleString('en-GB')}</span>
       </div>
@@ -387,6 +394,7 @@ function renderOrders() {
         </label>
         <div class="admin-order-actions">
           <button type="button" class="btn btn-outline admin-print-btn" data-print-receipt>🖨️ Print Receipt</button>
+          ${order.paymentStatus === 'Paid' ? '<button type="button" class="btn btn-outline admin-print-btn" data-reprint>🧾 Send to Receipt Printer</button>' : ''}
           <button type="button" class="btn btn-outline admin-delete-btn" data-delete-order>🗑️ Delete</button>
         </div>
       </div>
@@ -414,6 +422,21 @@ function renderOrders() {
       const order = allOrders.find((o) => o._id === id);
       if (order) printReceipt(order);
     });
+    const reprintBtn = card.querySelector('[data-reprint]');
+    if (reprintBtn) {
+      reprintBtn.addEventListener('click', async () => {
+        reprintBtn.disabled = true;
+        try {
+          const updated = await adminRequest(`/orders/${id}/reprint`, { method: 'PATCH' });
+          const index = allOrders.findIndex((o) => o._id === id);
+          if (index >= 0) allOrders[index] = updated;
+          renderOrders();
+        } catch (err) {
+          alert(`Failed to send to the receipt printer: ${err.message}`);
+          reprintBtn.disabled = false;
+        }
+      });
+    }
     card.querySelector('[data-delete-order]').addEventListener('click', async () => {
       const order = allOrders.find((o) => o._id === id);
       if (!confirm(`Delete order #${order ? order.orderNumber : ''}? This can't be undone.`)) return;
