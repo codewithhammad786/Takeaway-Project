@@ -11,6 +11,9 @@ const adminSchema = new mongoose.Schema(
     twoFactorEnabled: { type: Boolean, default: false },
     failedLoginAttempts: { type: Number, default: 0 },
     lockedUntil: { type: Date },
+    // Secret in the receipt printer's web address (see server/routes/printer.js). Created and rotated
+    // from Admin → Settings, so it works without touching hosting environment variables.
+    printerKey: { type: String },
   },
   { timestamps: true }
 );

@@ -13,6 +13,7 @@ const requireAdmin = require('../middleware/requireAdmin');
 const upload = require('../middleware/upload');
 const { sendMail } = require('../utils/mailer');
 const { signAdminSessionToken } = require('../utils/adminAuth');
+const { clearPrinterKeyCache } = require('../utils/printerKey');
 
 const router = express.Router();
 
@@ -113,6 +114,32 @@ router.patch('/settings/password', requireAdmin, async (req, res, next) => {
     await admin.save();
 
     res.json({ message: 'Password updated' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/settings/printer — the receipt printer's secret key (if one has been created), so
+// the Settings page can show the web address to type into the printer.
+router.get('/settings/printer', requireAdmin, async (req, res, next) => {
+  try {
+    const admin = await Admin.findOne();
+    res.json({ key: (admin && admin.printerKey) || null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/settings/printer/regenerate — creates (or replaces) the printer key. The old key
+// stops working immediately, so the printer's settings need the new address afterwards.
+router.post('/settings/printer/regenerate', requireAdmin, async (req, res, next) => {
+  try {
+    const admin = await Admin.findOne();
+    if (!admin) return res.status(500).json({ message: 'No manager account exists yet' });
+    admin.printerKey = crypto.randomBytes(24).toString('hex');
+    await admin.save();
+    clearPrinterKeyCache();
+    res.json({ key: admin.printerKey });
   } catch (err) {
     next(err);
   }

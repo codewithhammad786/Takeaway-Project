@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const Order = require('../models/Order');
 const { buildPrintRequest } = require('../utils/receiptEpos');
+const { tidyKey, getAcceptedPrinterKeys } = require('../utils/printerKey');
 
 // Epson "Server Direct Print": the receipt printer (Ethernet-connected) polls this URL every few
 // seconds. If a recently paid order is waiting, we reply with its receipt as ePOS-Print XML; the
@@ -21,41 +22,38 @@ const RESULT_WINDOW_MS = 10 * 60 * 1000;
 router.use(express.urlencoded({ extended: false, limit: '64kb' }));
 router.use(express.text({ type: ['text/*', 'application/xml'], limit: '64kb' }));
 
-// Hosting dashboards make it easy to save a value with a stray space, line break or pair of quotes
-// around it, so both the saved key and the one in the URL are tidied before comparing.
-function tidyKey(value) {
-  return String(value == null ? '' : value)
-    .trim()
-    .replace(/^["']+|["']+$/g, '')
-    .trim();
-}
-
 // The printer can't send headers, so the secret travels in the URL (?key=...). Constant-time
 // compare so the key can't be guessed byte by byte from response timing.
-function keyMatches(provided) {
-  const expected = tidyKey(process.env.PRINTER_KEY);
+async function keyMatches(provided) {
   const given = tidyKey(provided);
-  if (!expected || !given) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!given) return false;
+  const b = Buffer.from(given);
+  let ok = false;
+  for (const key of await getAcceptedPrinterKeys()) {
+    const a = Buffer.from(key);
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) ok = true;
+  }
+  return ok;
 }
 
-// Says why a request was refused — in the response only whether the feature is switched on, and in
-// the (private) server logs the two key lengths, at most once a minute. Lengths are enough to spot
-// a copy-paste mistake without ever writing a key anywhere.
+// Says why a request was refused — in the response only whether the feature has a key at all, and
+// in the (private) server logs the key lengths, at most once a minute. Lengths are enough to spot a
+// copy-paste mistake without ever writing a key anywhere.
 let lastRejectLog = 0;
-function reject(req, res) {
-  const expected = tidyKey(process.env.PRINTER_KEY);
+async function reject(req, res) {
+  const accepted = await getAcceptedPrinterKeys();
   if (Date.now() - lastRejectLog > 60000) {
     lastRejectLog = Date.now();
     console.warn(
-      expected
-        ? `🖨️  Printer request refused: key in the URL is ${tidyKey(req.query.key).length} characters, the saved PRINTER_KEY is ${expected.length}.`
-        : '🖨️  Printer request refused: PRINTER_KEY is not set on the server.'
+      accepted.length
+        ? `🖨️  Printer request refused: key in the URL is ${tidyKey(req.query.key).length} characters, the saved key is ${accepted[0].length}.`
+        : '🖨️  Printer request refused: no printer key has been created yet.'
     );
   }
-  res.status(403).type('text/plain').send(expected ? 'Forbidden' : 'Forbidden: PRINTER_KEY is not set on the server');
+  res
+    .status(403)
+    .type('text/plain')
+    .send(accepted.length ? 'Forbidden' : 'Forbidden: no printer key has been created yet (create one in Admin → Settings)');
 }
 
 function readFields(req) {
@@ -106,13 +104,13 @@ async function recordPrintResult(fields, now = new Date()) {
 // GET /api/printer/sdp?key=... — lets you open the URL in a browser to check the key works and see
 // how many receipts are waiting. Claims nothing.
 router.get('/sdp', async (req, res) => {
-  if (!keyMatches(req.query.key)) return reject(req, res);
+  if (!(await keyMatches(req.query.key))) return reject(req, res);
   const waiting = await Order.countDocuments(queueFilter(new Date()));
   res.json({ ok: true, receiptsWaiting: waiting });
 });
 
 router.post('/sdp', async (req, res) => {
-  if (!keyMatches(req.query.key)) return reject(req, res);
+  if (!(await keyMatches(req.query.key))) return reject(req, res);
 
   try {
     const fields = readFields(req);

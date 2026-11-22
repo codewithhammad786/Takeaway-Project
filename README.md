@@ -153,9 +153,9 @@ The dashboard sidebar has these pages:
 
 Paid orders can print on the shop's Epson receipt printer by themselves, with no phone, tablet or computer left open. The printer, connected to the router by Ethernet, asks the website every few seconds whether a new paid order is waiting (Epson's **Server Direct Print**); if so, the site replies with the receipt and the printer prints it, then confirms. The code is in `server/routes/printer.js` (the endpoint) and `server/utils/receiptEpos.js` (the receipt layout).
 
-1. Add a **`PRINTER_KEY`** variable to your hosting (Railway → service → Variables): a long random value using only letters and numbers (32+ characters). Until it is set, the endpoint stays switched off.
-2. Check it works by opening `https://YOUR-DOMAIN/api/printer/sdp?key=YOUR_KEY` in a browser — it should show `{"ok":true,"receiptsWaiting":0}`. A wrong key shows "Forbidden".
-3. Open the printer's settings page (`http://PRINTER-IP`), find **Server Direct Print**, enable it, and enter that same address (`https://YOUR-DOMAIN/api/printer/sdp?key=YOUR_KEY`) as the server URL, with an interval of about 5 seconds.
+1. Log in to the admin page, open **Settings → Receipt Printer**, and click **Create printer key**. The page shows the printer's web address (`https://YOUR-DOMAIN/api/printer/sdp?key=...`). The key is stored in the database; creating a new one stops the old address working. (A `PRINTER_KEY` hosting variable is still accepted too, if you prefer that.) Until a key exists, the endpoint stays switched off.
+2. Check it works by clicking **Test address** (or opening the address in a browser) — it should show `{"ok":true,"receiptsWaiting":0}`. A wrong key shows "Forbidden".
+3. Open the printer's settings page (`http://PRINTER-IP`), find **Server Direct Print**, enable it, and enter that same address as the server URL, with an interval of about 5 seconds.
 4. Place a test order. The admin order card shows **Printed** once the printer confirms. **Send to Receipt Printer** on any paid order prints it again.
 
 Only orders paid after the feature goes live are queued, and only for 3 hours, so enabling the printer never reprints old orders. If the printer doesn't confirm a receipt within 2 minutes it is sent one more time, then left alone. Layout width and the £ sign can be tuned with the optional `RECEIPT_COLUMNS` (default 42; use 32 for 58mm paper) and `RECEIPT_CURRENCY` (set to `GBP` if £ prints wrongly) variables.

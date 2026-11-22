@@ -3076,6 +3076,26 @@ textarea:focus {
   color: var(--color-muted);
 }
 
+.admin-settings-box + .admin-settings-box {
+  margin-top: 20px;
+}
+
+.admin-printer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+
+.admin-printer-actions .btn[hidden] {
+  display: none;
+}
+
+#admin-printer-url {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.85rem;
+}
+
 .admin-print-badge {
   display: inline-block;
   margin-left: 8px;

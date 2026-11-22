@@ -806,6 +806,41 @@ function switchAdminTab(tab) {
   if (tab === 'deals' && !dealsLoaded) {
     loadDealsRecipientCount();
   }
+  if (tab === 'settings') {
+    loadPrinterSettings();
+  }
+}
+
+// The receipt printer's web address contains a secret key kept in the database, created and
+// rotated here — so it can be set up without any access to the hosting dashboard.
+function showPrinterFeedback(message, type) {
+  const feedback = document.getElementById('admin-printer-feedback');
+  feedback.textContent = message;
+  feedback.className = `feedback ${type}`;
+  feedback.hidden = false;
+}
+
+function renderPrinterSettings(key) {
+  const urlInput = document.getElementById('admin-printer-url');
+  const copyBtn = document.getElementById('admin-printer-copy');
+  const testLink = document.getElementById('admin-printer-test');
+  const generateBtn = document.getElementById('admin-printer-generate');
+  const url = key ? `${window.location.origin}/api/printer/sdp?key=${key}` : '';
+
+  urlInput.value = url;
+  copyBtn.disabled = !key;
+  testLink.hidden = !key;
+  if (key) testLink.href = url;
+  generateBtn.textContent = key ? 'Generate new key' : 'Create printer key';
+}
+
+async function loadPrinterSettings() {
+  try {
+    const { key } = await adminRequest('/settings/printer');
+    renderPrinterSettings(key);
+  } catch (err) {
+    showPrinterFeedback(`Couldn't load the printer settings: ${err.message}`, 'error');
+  }
 }
 
 async function loadDealsRecipientCount() {
@@ -893,6 +928,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('image-category-filter').addEventListener('change', renderMenuImages);
   document.getElementById('review-filter').addEventListener('change', renderReviews);
+
+  document.getElementById('admin-printer-generate').addEventListener('click', async () => {
+    const hasKey = !document.getElementById('admin-printer-copy').disabled;
+    if (hasKey && !confirm('Create a new key? The old printer address will stop working until you enter the new one in the printer.')) {
+      return;
+    }
+    try {
+      const { key } = await adminRequest('/settings/printer/regenerate', { method: 'POST' });
+      renderPrinterSettings(key);
+      showPrinterFeedback('Printer key created. Copy the address into the printer\'s Server Direct Print settings.', 'success');
+    } catch (err) {
+      showPrinterFeedback(err.message, 'error');
+    }
+  });
+
+  document.getElementById('admin-printer-copy').addEventListener('click', async () => {
+    const urlInput = document.getElementById('admin-printer-url');
+    try {
+      await navigator.clipboard.writeText(urlInput.value);
+    } catch (err) {
+      urlInput.select();
+      document.execCommand('copy');
+    }
+    showPrinterFeedback('Address copied.', 'success');
+  });
 
   document.getElementById('admin-password-form').addEventListener('submit', async (e) => {
     e.preventDefault();

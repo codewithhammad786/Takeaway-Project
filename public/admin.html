@@ -247,6 +247,22 @@
                 <button type="submit" class="btn btn-primary">Update Password</button>
               </form>
             </div>
+
+            <div class="admin-settings-box" id="admin-printer-box">
+              <h3>Receipt Printer</h3>
+              <p class="admin-settings-hint">Paid orders print automatically on your Epson receipt printer. Open the printer's settings page, find <strong>Server Direct Print</strong>, and enter the address below as the server URL (check for new jobs about every 5 seconds).</p>
+              <div class="form-group">
+                <label for="admin-printer-url">Printer web address</label>
+                <input type="text" id="admin-printer-url" readonly placeholder="No printer key yet — click Create printer key" />
+              </div>
+              <div id="admin-printer-feedback" class="feedback" hidden></div>
+              <div class="admin-printer-actions">
+                <button type="button" class="btn btn-outline" id="admin-printer-copy" disabled>Copy address</button>
+                <a class="btn btn-outline" id="admin-printer-test" href="#" target="_blank" rel="noopener" hidden>Test address</a>
+                <button type="button" class="btn btn-primary" id="admin-printer-generate">Create printer key</button>
+              </div>
+              <p class="admin-settings-hint">Keep this address private — anyone with it can read your waiting orders. Creating a new key stops the old address working, so update the printer afterwards.</p>
+            </div>
           </div>
         </div>
       </div>
