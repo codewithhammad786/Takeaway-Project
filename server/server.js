@@ -27,6 +27,8 @@ if (!process.env.ADMIN_SESSION_SECRET) {
 }
 if (!process.env.PRINTER_KEY) {
   console.log('ℹ️  PRINTER_KEY is not set — automatic receipt printing (/api/printer/sdp) is switched off.');
+} else {
+  console.log(`🖨️  PRINTER_KEY is set (${process.env.PRINTER_KEY.trim().length} characters) — automatic receipt printing is switched on.`);
 }
 if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
   console.warn('⚠️  SMTP settings are not fully set — sending deal emails from the Deals tab will fail until configured in .env');
