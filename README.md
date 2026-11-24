@@ -158,6 +158,8 @@ Paid orders can print on the shop's Epson receipt printer by themselves, with no
 3. Open the printer's settings page (`http://PRINTER-IP`), find **Server Direct Print**, enable it, and enter that same address as the server URL, with an interval of about 5 seconds.
 4. Place a test order. The admin order card shows **Printed** once the printer confirms. **Send to Receipt Printer** on any paid order prints it again.
 
+**If your printer has no Server Direct Print page** (the plain TM-m30II web page doesn't show one), use the small "bridge" program instead: `public/print-bridge.js` (also downloadable from the site at `/print-bridge.js`). It runs on any always-on Windows PC, Raspberry Pi, or Android tablet (with the free Termux app and Node.js), fetches each waiting receipt from this same endpoint, sends it to the printer over the local network (Epson's ePOS-Print HTTP interface), and reports back so the order is marked **Printed**. Admin → Settings → Receipt Printer shows the exact one-line command to paste. Start it with `node print-bridge.js "<printer web address>" <printer IP>`, or with a `bridge-settings.json` next to it; `--test` prints a test receipt. Keep the address private — it contains the key.
+
 Only orders paid after the feature goes live are queued, and only for 3 hours, so enabling the printer never reprints old orders. If the printer doesn't confirm a receipt within 2 minutes it is sent one more time, then left alone. Layout width and the £ sign can be tuned with the optional `RECEIPT_COLUMNS` (default 42; use 32 for 58mm paper) and `RECEIPT_CURRENCY` (set to `GBP` if £ prints wrongly) variables.
 
 ## How Ordering Works

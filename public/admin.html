@@ -261,6 +261,19 @@
                 <a class="btn btn-outline" id="admin-printer-test" href="#" target="_blank" rel="noopener" hidden>Test address</a>
                 <button type="button" class="btn btn-primary" id="admin-printer-generate">Create printer key</button>
               </div>
+              <h4 class="admin-printer-subtitle">Run it from an Android tablet or computer</h4>
+              <p class="admin-settings-hint">Something small at the shop has to fetch each receipt and pass it to the printer. On a tablet with the free Termux app, or any computer with Node.js, paste the line below into its command window.</p>
+              <div class="form-group">
+                <label for="admin-printer-ip">Printer's IP address (from its printed status sheet)</label>
+                <input type="text" id="admin-printer-ip" inputmode="decimal" placeholder="e.g. 192.168.0.86" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label for="admin-printer-command">Command to paste</label>
+                <textarea id="admin-printer-command" rows="4" readonly placeholder="Create a printer key and enter the printer's IP address first."></textarea>
+              </div>
+              <div class="admin-printer-actions">
+                <button type="button" class="btn btn-outline" id="admin-printer-command-copy" disabled>Copy command</button>
+              </div>
               <p class="admin-settings-hint">Keep this address private — anyone with it can read your waiting orders. Creating a new key stops the old address working, so update the printer afterwards.</p>
             </div>
           </div>

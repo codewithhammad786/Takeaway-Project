@@ -3091,6 +3091,18 @@ textarea:focus {
   display: none;
 }
 
+.admin-printer-subtitle {
+  margin: 22px 0 6px;
+  font-size: 1rem;
+}
+
+#admin-printer-command {
+  width: 100%;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
 #admin-printer-url {
   font-family: Consolas, 'Courier New', monospace;
   font-size: 0.85rem;

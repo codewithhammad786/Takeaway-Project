@@ -832,6 +832,22 @@ function renderPrinterSettings(key) {
   testLink.hidden = !key;
   if (key) testLink.href = url;
   generateBtn.textContent = key ? 'Generate new key' : 'Create printer key';
+  currentPrinterUrl = url;
+  renderPrinterCommand();
+}
+
+// One line that downloads the receipt program from this site and starts it with the right address —
+// for pasting into Termux on an Android tablet (or any computer with Node.js).
+let currentPrinterUrl = '';
+const PRINTER_IP_KEY = 'bunndough_printer_ip';
+
+function renderPrinterCommand() {
+  const ip = document.getElementById('admin-printer-ip').value.trim();
+  const box = document.getElementById('admin-printer-command');
+  const copyBtn = document.getElementById('admin-printer-command-copy');
+  const ready = currentPrinterUrl && /^[A-Za-z0-9.-]+$/.test(ip);
+  box.value = ready ? `curl -sO ${window.location.origin}/print-bridge.js && node print-bridge.js "${currentPrinterUrl}" ${ip}` : '';
+  copyBtn.disabled = !ready;
 }
 
 async function loadPrinterSettings() {
@@ -941,6 +957,32 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       showPrinterFeedback(err.message, 'error');
     }
+  });
+
+  const printerIpInput = document.getElementById('admin-printer-ip');
+  try {
+    printerIpInput.value = localStorage.getItem(PRINTER_IP_KEY) || '';
+  } catch (err) {
+    // storage unavailable — the field just starts empty
+  }
+  printerIpInput.addEventListener('input', () => {
+    try {
+      localStorage.setItem(PRINTER_IP_KEY, printerIpInput.value.trim());
+    } catch (err) {
+      // not remembered, still works
+    }
+    renderPrinterCommand();
+  });
+
+  document.getElementById('admin-printer-command-copy').addEventListener('click', async () => {
+    const box = document.getElementById('admin-printer-command');
+    try {
+      await navigator.clipboard.writeText(box.value);
+    } catch (err) {
+      box.select();
+      document.execCommand('copy');
+    }
+    showPrinterFeedback('Command copied. Paste it into Termux (or a command window) and press Enter.', 'success');
   });
 
   document.getElementById('admin-printer-copy').addEventListener('click', async () => {
